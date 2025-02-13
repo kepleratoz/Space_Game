@@ -60,6 +60,8 @@ const SHIP_CLASSES = {
         acceleration: 0.4,
         rotationalAcceleration: 0.03,
         shootCost: 10,
+        maxEnergy: 100,
+        energyRegen: 0.3,
         color: '#00ff00'
     },
     TANK: {
@@ -70,6 +72,8 @@ const SHIP_CLASSES = {
         acceleration: 0.3,
         rotationalAcceleration: 0.02,
         shootCost: 15,
+        maxEnergy: 150,
+        energyRegen: 0.2,
         color: '#00aaff'
     },
     SPEEDSTER: {
@@ -80,6 +84,8 @@ const SHIP_CLASSES = {
         acceleration: 0.5,
         rotationalAcceleration: 0.04,
         shootCost: 8,
+        maxEnergy: 80,
+        energyRegen: 0.4,
         color: '#ff00ff'
     }
 };
@@ -95,6 +101,13 @@ const UPGRADE_LEVELS = {
 let gameState = 'CLASS_SELECT'; // 'CLASS_SELECT', 'PLAYING', 'GAME_OVER'
 let selectedClass = null;
 
+// Add pause state
+let isPaused = false;
+
+// Add debug state and controls
+let isDebugMode = false;
+let isInvincible = false;
+
 class Player {
     constructor(shipClass) {
         this.width = 40;
@@ -106,10 +119,10 @@ class Player {
         this.rotationalFriction = 0.85;
         this.maxRotationalVelocity = 0.2;
         this.shipClass = shipClass;
-        this.upgradeLevel = 0; // Start at level 0 (basic ship)
+        this.upgradeLevel = 0;
         
-        // Apply ship class stats
-        this.maxHealth = shipClass.health; // No initial health bonus
+        // Apply ship class stats with smaller initial bonuses
+        this.maxHealth = shipClass.health;
         this.health = this.maxHealth;
         this.maxSpeed = shipClass.maxSpeed;
         this.acceleration = shipClass.acceleration;
@@ -118,11 +131,11 @@ class Player {
         this.color = shipClass.color;
         
         this.lasers = [];
-        this.energy = 100;
-        this.maxEnergy = 100;
-        this.energyRegen = 0.2;
-        this.gems = 0; // Start with 0 gems
-        this.maxGems = UPGRADE_LEVELS.LEVEL1.gems; // Target level 1 (100 gems)
+        this.energy = shipClass.maxEnergy;
+        this.maxEnergy = shipClass.maxEnergy;
+        this.energyRegen = shipClass.energyRegen;
+        this.gems = 0;
+        this.maxGems = UPGRADE_LEVELS.LEVEL1.gems;
         this.shootCooldown = 0;
         this.maxShootCooldown = 15;
         this.velocityX = 0;
@@ -140,55 +153,150 @@ class Player {
         ctx.translate(screenX, screenY);
         ctx.rotate(this.rotation);
         
-        // Draw ship based on class and upgrade level
         ctx.fillStyle = this.invulnerable ? this.color + '88' : this.color;
         
-        if (this.upgradeLevel === 0) {
-            // Basic ship shape
-            ctx.beginPath();
-            ctx.moveTo(this.width / 2, 0);
-            ctx.lineTo(-this.width / 2, this.height / 2);
-            ctx.lineTo(-this.width / 2, -this.height / 2);
-            ctx.closePath();
-            ctx.fill();
-        } else if (this.upgradeLevel === 1) {
-            // Level 1 upgrade - more angular design
-            ctx.beginPath();
-            ctx.moveTo(this.width / 2, 0);
-            ctx.lineTo(0, this.height / 3);
-            ctx.lineTo(-this.width / 2, this.height / 2);
-            ctx.lineTo(-this.width / 3, 0);
-            ctx.lineTo(-this.width / 2, -this.height / 2);
-            ctx.lineTo(0, -this.height / 3);
-            ctx.closePath();
-            ctx.fill();
-        } else if (this.upgradeLevel === 2) {
-            // Level 2 upgrade - double wing design
-            ctx.beginPath();
-            ctx.moveTo(this.width / 2, 0);
-            ctx.lineTo(0, this.height / 2);
-            ctx.lineTo(-this.width / 3, this.height / 2);
-            ctx.lineTo(-this.width / 2, 0);
-            ctx.lineTo(-this.width / 3, -this.height / 2);
-            ctx.lineTo(0, -this.height / 2);
-            ctx.closePath();
-            ctx.fill();
-        } else {
-            // Level 3 upgrade - advanced ship design
-            ctx.beginPath();
-            ctx.moveTo(this.width / 2, 0);
-            ctx.lineTo(this.width / 4, this.height / 3);
-            ctx.lineTo(-this.width / 2, this.height / 2);
-            ctx.lineTo(-this.width / 3, 0);
-            ctx.lineTo(-this.width / 2, -this.height / 2);
-            ctx.lineTo(this.width / 4, -this.height / 3);
-            ctx.closePath();
-            ctx.fill();
-            
-            // Add glowing effect
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 2;
-            ctx.stroke();
+        // Class-specific ship designs based on upgrade level
+        if (this.shipClass.name === 'Fighter') {
+            if (this.upgradeLevel === 0) {
+                // Basic fighter - sleek and pointed
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(-this.width / 2, this.height / 3);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 1) {
+                // Level 1 - dual wing design
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(0, this.height / 3);
+                ctx.lineTo(-this.width / 2, this.height / 2);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 2);
+                ctx.lineTo(0, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 2) {
+                // Level 2 - quad wing design
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 4, this.height / 3);
+                ctx.lineTo(-this.width / 3, this.height / 2);
+                ctx.lineTo(-this.width / 2, 0);
+                ctx.lineTo(-this.width / 3, -this.height / 2);
+                ctx.lineTo(this.width / 4, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Level 3+ - advanced fighter with multiple cannons
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 3, this.height / 3);
+                ctx.lineTo(0, this.height / 2);
+                ctx.lineTo(-this.width / 2, this.height / 3);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 3);
+                ctx.lineTo(0, -this.height / 2);
+                ctx.lineTo(this.width / 3, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            }
+        } else if (this.shipClass.name === 'Tank') {
+            if (this.upgradeLevel === 0) {
+                // Basic tank - wide and sturdy
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 4, this.height / 2);
+                ctx.lineTo(-this.width / 2, this.height / 2);
+                ctx.lineTo(-this.width / 2, -this.height / 2);
+                ctx.lineTo(this.width / 4, -this.height / 2);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 1) {
+                // Level 1 - reinforced hull
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 3, this.height / 2);
+                ctx.lineTo(-this.width / 2, this.height / 2);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 2);
+                ctx.lineTo(this.width / 3, -this.height / 2);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 2) {
+                // Level 2 - heavy armor
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 2, this.height / 2);
+                ctx.lineTo(-this.width / 2, this.height / 2);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 2);
+                ctx.lineTo(this.width / 2, -this.height / 2);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Level 3+ - fortress design
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 2, this.height / 2);
+                ctx.lineTo(-this.width / 2, this.height / 2);
+                ctx.lineTo(-this.width / 2, -this.height / 2);
+                ctx.lineTo(this.width / 2, -this.height / 2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Add armor plates
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        } else if (this.shipClass.name === 'Speedster') {
+            if (this.upgradeLevel === 0) {
+                // Basic speedster - small and agile
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(-this.width / 3, this.height / 3);
+                ctx.lineTo(-this.width / 4, 0);
+                ctx.lineTo(-this.width / 3, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 1) {
+                // Level 1 - streamlined design
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(0, this.height / 4);
+                ctx.lineTo(-this.width / 2, this.height / 3);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 3);
+                ctx.lineTo(0, -this.height / 4);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 2) {
+                // Level 2 - aerodynamic form
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 4, this.height / 4);
+                ctx.lineTo(-this.width / 3, this.height / 3);
+                ctx.lineTo(-this.width / 4, 0);
+                ctx.lineTo(-this.width / 3, -this.height / 3);
+                ctx.lineTo(this.width / 4, -this.height / 4);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Level 3+ - high-tech racer
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 3, this.height / 4);
+                ctx.lineTo(0, this.height / 3);
+                ctx.lineTo(-this.width / 2, this.height / 4);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 4);
+                ctx.lineTo(0, -this.height / 3);
+                ctx.lineTo(this.width / 3, -this.height / 4);
+                ctx.closePath();
+                ctx.fill();
+            }
         }
 
         ctx.restore();
@@ -196,45 +304,37 @@ class Player {
     }
 
     drawStatusBars(screenX, screenY) {
-        const barWidth = 50;
-        const barHeight = 4;
-        const barSpacing = 6;
-        const barY = screenY - 40;
-
-        // Health bar (red)
-        const healthPercentage = this.health / this.maxHealth;
-        ctx.fillStyle = '#400';
-        ctx.fillRect(screenX - barWidth/2, barY, barWidth, barHeight);
-        ctx.fillStyle = '#f00';
-        ctx.fillRect(screenX - barWidth/2, barY, barWidth * healthPercentage, barHeight);
-
-        // Energy bar (blue)
-        const energyPercentage = this.energy / this.maxEnergy;
-        ctx.fillStyle = '#004';
-        ctx.fillRect(screenX - barWidth/2, barY + barSpacing, barWidth, barHeight);
-        ctx.fillStyle = this.shootCooldown > 0 ? '#0066aa' : '#0af';
-        ctx.fillRect(screenX - barWidth/2, barY + barSpacing, barWidth * energyPercentage, barHeight);
-
-        // Gem progress bar (purple)
-        let nextUpgradeGems = UPGRADE_LEVELS.LEVEL1.gems;
-        if (this.upgradeLevel >= 1) nextUpgradeGems = UPGRADE_LEVELS.LEVEL2.gems;
-        if (this.upgradeLevel >= 2) nextUpgradeGems = UPGRADE_LEVELS.LEVEL3.gems;
-        if (this.upgradeLevel >= 3) nextUpgradeGems = UPGRADE_LEVELS.LEVEL4.gems;
-        
-        const gemPercentage = Math.min(1, this.gems / nextUpgradeGems);
-        ctx.fillStyle = '#404';
-        ctx.fillRect(screenX - barWidth/2, barY + barSpacing * 2, barWidth, barHeight);
-        ctx.fillStyle = '#f0f';
-        ctx.fillRect(screenX - barWidth/2, barY + barSpacing * 2, barWidth * gemPercentage, barHeight);
-
-        // Draw gem count
-        ctx.fillStyle = '#fff';
-        ctx.font = '12px Arial';
+        // Draw gem count text only
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px Arial';
         ctx.textAlign = 'center';
         if (this.upgradeLevel < 4) {
-            ctx.fillText(`${this.gems}/${nextUpgradeGems}`, screenX, barY + barSpacing * 2 + barHeight + 10);
+            let nextUpgradeGems;
+            switch(this.upgradeLevel) {
+                case 0:
+                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL1.gems;
+                    break;
+                case 1:
+                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL2.gems;
+                    break;
+                case 2:
+                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL3.gems;
+                    break;
+                case 3:
+                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL4.gems;
+                    break;
+            }
+            // Add black outline to make text more readable
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.strokeText(`${this.gems}/${nextUpgradeGems}`, screenX, screenY + 25);
+            ctx.fillText(`${this.gems}/${nextUpgradeGems}`, screenX, screenY + 25);
         } else {
-            ctx.fillText(`${this.gems}`, screenX, barY + barSpacing * 2 + barHeight + 10);
+            // Add black outline to make text more readable
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.strokeText(`${this.gems}`, screenX, screenY + 25);
+            ctx.fillText(`${this.gems}`, screenX, screenY + 25);
         }
         ctx.textAlign = 'left'; // Reset text align
     }
@@ -330,26 +430,26 @@ class Player {
 
     update() {
         // Check for upgrades
-        if (this.gems >= UPGRADE_LEVELS.LEVEL4.gems && this.upgradeLevel < 4) {
+        if (this.gems >= UPGRADE_LEVELS.LEVEL4.gems && this.upgradeLevel === 3) {
             this.upgradeLevel = 4;
             this.maxHealth += 50;
             this.health = this.maxHealth;
-            this.maxGems = UPGRADE_LEVELS.LEVEL4.gems;
-        } else if (this.gems >= UPGRADE_LEVELS.LEVEL3.gems && this.upgradeLevel < 3) {
+            this.gems = 0;
+        } else if (this.gems >= UPGRADE_LEVELS.LEVEL3.gems && this.upgradeLevel === 2) {
             this.upgradeLevel = 3;
             this.maxHealth += 40;
             this.health = this.maxHealth;
-            this.maxGems = UPGRADE_LEVELS.LEVEL3.gems;
-        } else if (this.gems >= UPGRADE_LEVELS.LEVEL2.gems && this.upgradeLevel < 2) {
+            this.gems = 0;
+        } else if (this.gems >= UPGRADE_LEVELS.LEVEL2.gems && this.upgradeLevel === 1) {
             this.upgradeLevel = 2;
             this.maxHealth += 30;
             this.health = this.maxHealth;
-            this.maxGems = UPGRADE_LEVELS.LEVEL2.gems;
-        } else if (this.gems >= UPGRADE_LEVELS.LEVEL1.gems && this.upgradeLevel < 1) {
+            this.gems = 0;
+        } else if (this.gems >= UPGRADE_LEVELS.LEVEL1.gems && this.upgradeLevel === 0) {
             this.upgradeLevel = 1;
             this.maxHealth += 20;
             this.health = this.maxHealth;
-            this.maxGems = UPGRADE_LEVELS.LEVEL1.gems;
+            this.gems = 0;
         }
         
         // Existing update code
@@ -363,49 +463,122 @@ class Player {
     shoot() {
         if ((!keys[' '] && !mouse.isDown) || this.energy < this.shootCost || this.shootCooldown > 0) return;
         
-        this.energy -= this.shootCost;
-        this.shootCooldown = this.maxShootCooldown;
+        let energyCost = this.shootCost;
         
-        // Different shot patterns based on upgrade level
-        switch(this.upgradeLevel) {
-            case 0: // Basic single shot
-                this.createLaser(this.rotation);
-                break;
-            case 1: // Two cannons slightly spread
-                this.createLaser(this.rotation - 0.15);
-                this.createLaser(this.rotation + 0.15);
-                break;
-            case 2: // Three cannons
-                this.createLaser(this.rotation);
-                this.createLaser(this.rotation - 0.2);
-                this.createLaser(this.rotation + 0.2);
-                break;
-            case 3: // Four cannons
-                this.createLaser(this.rotation - 0.1);
-                this.createLaser(this.rotation + 0.1);
-                this.createLaser(this.rotation - 0.3);
-                this.createLaser(this.rotation + 0.3);
-                break;
-            case 4: // Five cannons with better spread
-                this.createLaser(this.rotation);
-                this.createLaser(this.rotation - 0.2);
-                this.createLaser(this.rotation + 0.2);
-                this.createLaser(this.rotation - 0.4);
-                this.createLaser(this.rotation + 0.4);
-                break;
+        // Class-specific shooting patterns with different energy costs
+        if (this.shipClass.name === 'Fighter') {
+            switch(this.upgradeLevel) {
+                case 0: // Single precise shot
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation, 1);
+                    }
+                    break;
+                case 1: // Dual shots
+                    energyCost *= 1.5;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation - 0.1, 1);
+                        this.createLaser(this.rotation + 0.1, 1);
+                    }
+                    break;
+                case 2: // Triple shots
+                    energyCost *= 2;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation, 1);
+                        this.createLaser(this.rotation - 0.15, 0.8);
+                        this.createLaser(this.rotation + 0.15, 0.8);
+                    }
+                    break;
+                default: // Level 3+ - Two side shots and one powerful center shot
+                    energyCost *= 2.5;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation, 1.5);
+                        this.createLaser(this.rotation - 0.2, 0.8);
+                        this.createLaser(this.rotation + 0.2, 0.8);
+                    }
+                    break;
+            }
+        } else if (this.shipClass.name === 'Tank') {
+            switch(this.upgradeLevel) {
+                case 0: // Single heavy shot
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation, 1.2);
+                    }
+                    break;
+                case 1: // Two heavy shots
+                    energyCost *= 1.8;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation - 0.1, 1.2);
+                        this.createLaser(this.rotation + 0.1, 1.2);
+                    }
+                    break;
+                case 2: // Three spread shots
+                    energyCost *= 2.5;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation, 1.2);
+                        this.createLaser(this.rotation - 0.2, 1.2);
+                        this.createLaser(this.rotation + 0.2, 1.2);
+                    }
+                    break;
+                default: // Level 3+ - Five heavy spread shots
+                    energyCost *= 3;
+                    if (this.energy >= energyCost) {
+                        for (let i = -2; i <= 2; i++) {
+                            this.createLaser(this.rotation + (i * 0.15), 1.3);
+                        }
+                    }
+                    break;
+            }
+        } else if (this.shipClass.name === 'Speedster') {
+            switch(this.upgradeLevel) {
+                case 0: // Quick single shot
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation, 0.8);
+                    }
+                    break;
+                case 1: // Rapid dual shots
+                    energyCost *= 1.3;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation - 0.05, 0.8);
+                        this.createLaser(this.rotation + 0.05, 0.8);
+                    }
+                    break;
+                case 2: // Triple quick shots
+                    energyCost *= 1.6;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation, 0.8);
+                        this.createLaser(this.rotation - 0.1, 0.8);
+                        this.createLaser(this.rotation + 0.1, 0.8);
+                    }
+                    break;
+                default: // Level 3+ - Four rapid shots in tight formation
+                    energyCost *= 2;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation - 0.05, 0.8);
+                        this.createLaser(this.rotation + 0.05, 0.8);
+                        this.createLaser(this.rotation - 0.15, 0.8);
+                        this.createLaser(this.rotation + 0.15, 0.8);
+                    }
+                    break;
+            }
+        }
+        
+        if (this.energy >= energyCost) {
+            this.energy -= energyCost;
+            this.shootCooldown = this.maxShootCooldown;
         }
     }
 
-    createLaser(angle) {
+    createLaser(angle, sizeMultiplier = 1) {
         const laser = {
-            x: this.x + Math.cos(angle) * this.width,
-            y: this.y + Math.sin(angle) * this.width,
+            x: this.x,
+            y: this.y,
             velocityX: Math.cos(angle) * 10 + this.velocityX,
             velocityY: Math.sin(angle) * 10 + this.velocityY,
-            width: 4,
-            height: 4,
+            width: 4 * sizeMultiplier,
+            height: 4 * sizeMultiplier,
             rotation: angle,
-            color: this.upgradeLevel >= 2 ? this.color : '#ff0000'
+            color: this.upgradeLevel >= 2 ? this.color : '#ff0000',
+            damage: 10 * sizeMultiplier
         };
         this.lasers.push(laser);
     }
@@ -444,7 +617,7 @@ class Player {
     }
 
     collectGems(amount) {
-        this.gems = Math.min(this.maxGems, this.gems + amount);
+        this.gems = Math.min(UPGRADE_LEVELS.LEVEL4.gems, this.gems + amount);
     }
 
     updateLasers() {
@@ -739,11 +912,15 @@ class Asteroid {
         this.height = 50;
         this.x = Math.random() * WORLD_WIDTH;
         this.y = Math.random() * WORLD_HEIGHT;
-        this.velocityX = (Math.random() - 0.5) * 2;
-        this.velocityY = (Math.random() - 0.5) * 2;
+        // Increase initial velocity for more momentum
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 2;
+        this.velocityX = Math.cos(angle) * speed;
+        this.velocityY = Math.sin(angle) * speed;
         this.rotation = Math.random() * Math.PI * 2;
         this.rotationSpeed = (Math.random() - 0.5) * 0.02;
         this.health = 50;
+        this.mass = 5; // Add mass property for collision calculations
     }
 
     draw() {
@@ -763,25 +940,68 @@ class Asteroid {
         ctx.beginPath();
         ctx.arc(0, 0, this.width/2, 0, Math.PI * 2);
         ctx.fill();
+        
+        // Add some surface detail
+        ctx.strokeStyle = '#606060';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(5, 5, this.width/4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(-10, -10, this.width/6, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.restore();
     }
 
     update() {
+        // Apply constant velocity with minimal friction
         this.x += this.velocityX;
         this.y += this.velocityY;
         this.rotation += this.rotationSpeed;
 
-        // Bounce off world boundaries
+        // Bounce off world boundaries with high conservation of momentum
         if (this.x < 0 || this.x > WORLD_WIDTH) {
-            this.velocityX *= -BOUNCE;
+            this.velocityX *= -0.95; // Only lose 5% velocity on bounce
             this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
         }
         if (this.y < 0 || this.y > WORLD_HEIGHT) {
-            this.velocityY *= -BOUNCE;
+            this.velocityY *= -0.95; // Only lose 5% velocity on bounce
             this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
         }
 
         return this.health <= 0;
+    }
+
+    // Add method to handle collision response
+    handleCollision(otherObject, overlap, angle) {
+        // Calculate mass ratio for collision response
+        const otherMass = otherObject.mass || 1;
+        const totalMass = this.mass + otherMass;
+        const thisRatio = this.mass / totalMass;
+        const otherRatio = otherMass / totalMass;
+
+        // Move objects apart based on mass
+        this.x -= Math.cos(angle) * overlap * otherRatio;
+        this.y -= Math.sin(angle) * overlap * otherRatio;
+        otherObject.x += Math.cos(angle) * overlap * thisRatio;
+        otherObject.y += Math.sin(angle) * overlap * thisRatio;
+
+        // Transfer some momentum
+        const relativeSpeed = Math.sqrt(
+            Math.pow(this.velocityX - otherObject.velocityX, 2) +
+            Math.pow(this.velocityY - otherObject.velocityY, 2)
+        );
+
+        // Heavy objects maintain more of their velocity
+        const thisSpeedLoss = 0.1; // Asteroid loses very little speed
+        const otherSpeedGain = 0.8; // Other object gets pushed significantly
+
+        otherObject.velocityX = this.velocityX * otherSpeedGain;
+        otherObject.velocityY = this.velocityY * otherSpeedGain;
+        
+        // Slightly adjust asteroid velocity
+        this.velocityX *= (1 - thisSpeedLoss);
+        this.velocityY *= (1 - thisSpeedLoss);
     }
 }
 
@@ -992,6 +1212,36 @@ function drawBackground() {
 function handleCollisions() {
     const playerRadius = player.width / 2;
 
+    // Add asteroid-enemy collisions
+    asteroids.forEach(asteroid => {
+        const asteroidRadius = asteroid.width / 2;
+        
+        // Check collisions with enemies
+        enemies.forEach(enemy => {
+            const enemyRadius = enemy.width / 2;
+            const dist = distance(asteroid.x, asteroid.y, enemy.x, enemy.y);
+            
+            if (dist < asteroidRadius + enemyRadius) {
+                // Calculate collision response
+                const angle = Math.atan2(enemy.y - asteroid.y, enemy.x - asteroid.x);
+                const overlap = (asteroidRadius + enemyRadius) - dist;
+                
+                // Handle collision physics
+                asteroid.handleCollision(enemy, overlap, angle);
+                
+                // Deal damage to enemy
+                const impactSpeed = Math.sqrt(
+                    Math.pow(asteroid.velocityX - enemy.velocityX, 2) +
+                    Math.pow(asteroid.velocityY - enemy.velocityY, 2)
+                );
+                
+                // Damage based on impact speed
+                const damage = Math.min(30, Math.max(10, impactSpeed * 5));
+                enemy.takeDamage(damage);
+            }
+        });
+    });
+
     // Check laser hits
     player.lasers.forEach((laser, laserIndex) => {
         // Check enemies
@@ -1039,13 +1289,38 @@ function handleCollisions() {
             const angle = Math.atan2(player.y - object.y, player.x - object.x);
             const overlap = (playerRadius + objectRadius) - dist;
             
-            // Push objects apart but maintain player control
-            object.x -= Math.cos(angle) * overlap;
-            object.y -= Math.sin(angle) * overlap;
-            
-            // Add impact velocity to the object
-            object.velocityX = (player.velocityX * 0.5) + (Math.cos(angle) * 5);
-            object.velocityY = (player.velocityY * 0.5) + (Math.sin(angle) * 5);
+            // Push objects apart
+            if (object instanceof Asteroid) {
+                // For asteroids, use more realistic physics
+                const massRatio = 0.3; // Player has more "mass" than asteroid
+                
+                // Move both objects apart
+                player.x += Math.cos(angle) * overlap * (1 - massRatio);
+                player.y += Math.sin(angle) * overlap * (1 - massRatio);
+                object.x -= Math.cos(angle) * overlap * massRatio;
+                object.y -= Math.sin(angle) * overlap * massRatio;
+                
+                // Calculate bounce velocities
+                const bounceForce = 0.3;
+                const relativeSpeed = Math.sqrt(
+                    Math.pow(player.velocityX - object.velocityX, 2) +
+                    Math.pow(player.velocityY - object.velocityY, 2)
+                );
+                
+                // Apply velocities based on collision angle and relative speed
+                object.velocityX = Math.cos(angle) * relativeSpeed * bounceForce;
+                object.velocityY = Math.sin(angle) * relativeSpeed * bounceForce;
+                
+                // Reduce player velocity slightly
+                player.velocityX *= 0.9;
+                player.velocityY *= 0.9;
+            } else {
+                // For enemies, keep existing behavior
+                object.x -= Math.cos(angle) * overlap;
+                object.y -= Math.sin(angle) * overlap;
+                object.velocityX = (player.velocityX * 0.5) + (Math.cos(angle) * 5);
+                object.velocityY = (player.velocityY * 0.5) + (Math.sin(angle) * 5);
+            }
             
             player.takeDamage(10);
         }
@@ -1180,6 +1455,12 @@ function gameLoop() {
         // Draw background
         drawBackground();
 
+        // Update player invincibility from debug mode
+        if (isDebugMode && isInvincible) {
+            player.invulnerable = true;
+            player.invulnerableTime = 2;
+        }
+
         // Update player
         player.update();
         player.shoot();
@@ -1234,13 +1515,62 @@ function gameLoop() {
         ctx.fillStyle = '#404';
         ctx.fillRect(barX, barY, barWidth, barHeight);
         ctx.fillStyle = '#f0f';
-        ctx.fillRect(barX, barY, barWidth * (player.gems / player.maxGems), barHeight);
-        ctx.fillText(`Gems: ${player.gems}/${player.maxGems}`, barX + 5, barY + 15);
+        
+        if (player.upgradeLevel >= 4) {
+            // At max level, show full bar and just gem count
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`Gems: ${player.gems}`, barX + 5, barY + 15);
+        } else {
+            // Show progress to next level
+            let nextUpgradeGems;
+            switch(player.upgradeLevel) {
+                case 0:
+                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL1.gems;
+                    break;
+                case 1:
+                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL2.gems;
+                    break;
+                case 2:
+                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL3.gems;
+                    break;
+                case 3:
+                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL4.gems;
+                    break;
+            }
+            ctx.fillRect(barX, barY, barWidth * (player.gems / nextUpgradeGems), barHeight);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`Gems: ${player.gems}/${nextUpgradeGems}`, barX + 5, barY + 15);
+        }
 
         // Draw score
         ctx.fillStyle = '#fff';
         ctx.font = '20px Arial';
         ctx.fillText(`Score: ${score}`, barX, barY + 40);
+
+        // Draw debug information if debug mode is enabled
+        if (isDebugMode) {
+            ctx.fillStyle = '#ff0';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText('DEBUG MODE', canvas.width - 10, canvas.height - 120);
+            ctx.fillText('K: Add 100 gems', canvas.width - 10, canvas.height - 100);
+            ctx.fillText('L: Fill health/energy', canvas.width - 10, canvas.height - 80);
+            ctx.fillText(';: Toggle invincibility' + (isInvincible ? ' (ON)' : ' (OFF)'), canvas.width - 10, canvas.height - 60);
+            
+            // Show additional debug info
+            ctx.fillText(`X: ${Math.round(player.x)}, Y: ${Math.round(player.y)}`, canvas.width - 10, canvas.height - 40);
+            ctx.fillText(`Enemies: ${enemies.length}, Asteroids: ${asteroids.length}`, canvas.width - 10, canvas.height - 20);
+            ctx.textAlign = 'left';
+        }
+
+        // Draw pause button
+        drawPauseButton();
+
+        // Draw pause screen if paused
+        if (gameState === 'PAUSED') {
+            drawPauseScreen();
+        }
     }
 
     requestAnimationFrame(gameLoop);
@@ -1337,6 +1667,98 @@ canvas.addEventListener('click', (e) => {
             gameState = 'PLAYING';
         }
     });
+});
+
+// Add pause button
+function drawPauseButton() {
+    const buttonSize = 30;
+    const margin = 10;
+    const x = canvas.width - buttonSize - margin;
+    const y = margin;
+    
+    // Draw button background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(x, y, buttonSize, buttonSize);
+    
+    // Draw pause icon or play icon
+    ctx.fillStyle = '#fff';
+    if (!isPaused) {
+        // Draw pause bars
+        ctx.fillRect(x + buttonSize * 0.3, y + buttonSize * 0.2, buttonSize * 0.15, buttonSize * 0.6);
+        ctx.fillRect(x + buttonSize * 0.55, y + buttonSize * 0.2, buttonSize * 0.15, buttonSize * 0.6);
+    } else {
+        // Draw play triangle
+        ctx.beginPath();
+        ctx.moveTo(x + buttonSize * 0.3, y + buttonSize * 0.2);
+        ctx.lineTo(x + buttonSize * 0.3, y + buttonSize * 0.8);
+        ctx.lineTo(x + buttonSize * 0.7, y + buttonSize * 0.5);
+        ctx.closePath();
+        ctx.fill();
+    }
+}
+
+// Add pause screen
+function drawPauseScreen() {
+    // Darken the game screen
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw pause text
+    ctx.fillStyle = '#fff';
+    ctx.font = '48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAUSED', canvas.width/2, canvas.height/2);
+    ctx.font = '24px Arial';
+    ctx.fillText('Press P or click the pause button to resume', canvas.width/2, canvas.height/2 + 40);
+    ctx.textAlign = 'left';
+}
+
+// Add pause button click handler
+canvas.addEventListener('click', (e) => {
+    if (gameState !== 'CLASS_SELECT' && gameState !== 'GAME_OVER') {
+        const buttonSize = 30;
+        const margin = 10;
+        const x = canvas.width - buttonSize - margin;
+        const y = margin;
+        
+        if (e.clientX >= x && e.clientX <= x + buttonSize &&
+            e.clientY >= y && e.clientY <= y + buttonSize) {
+            isPaused = !isPaused;
+            gameState = isPaused ? 'PAUSED' : 'PLAYING';
+        }
+    }
+});
+
+// Add pause key handler
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'p' || e.key === 'P') {
+        if (gameState !== 'CLASS_SELECT' && gameState !== 'GAME_OVER') {
+            isPaused = !isPaused;
+            gameState = isPaused ? 'PAUSED' : 'PLAYING';
+        }
+    }
+
+    // Debug controls
+    if (e.key === 'o' || e.key === 'O') {
+        isDebugMode = !isDebugMode;
+    }
+
+    if (isDebugMode && player) {
+        switch(e.key) {
+            case 'k':
+            case 'K':
+                player.gems += 100;
+                break;
+            case 'l':
+            case 'L':
+                player.health = player.maxHealth;
+                player.energy = player.maxEnergy;
+                break;
+            case ';':
+                isInvincible = !isInvincible;
+                break;
+        }
+    }
 });
 
 // Start the game
