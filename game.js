@@ -1074,7 +1074,7 @@ function spawnObjects() {
     // Wave system variables
     if (typeof window.waveNumber === 'undefined') {
         window.waveNumber = 1;
-        window.enemiesRemainingInWave = 0;
+        window.enemiesRemainingInWave = Math.min(5 + window.waveNumber * 2, 25);
         window.waveStartTime = Date.now();
         window.waveTimer = 0;
     }
@@ -1093,6 +1093,11 @@ function spawnObjects() {
             ctx.font = '30px Arial';
             ctx.fillText(`Wave ${window.waveNumber} Complete!`, canvas.width/2 - 150, canvas.height/2 - 30);
             ctx.fillText(`Next Wave in ${Math.ceil(window.waveTimer/60)}...`, canvas.width/2 - 120, canvas.height/2 + 30);
+            
+            // Update waves cleared when completing a wave
+            if (window.waveTimer === 299) { // Just completed a wave (first frame of timer)
+                updateWavesCleared(player.shipClass.name, window.waveNumber);
+            }
             
             return;
         }
@@ -1429,6 +1434,87 @@ function drawMinimap() {
     );
 }
 
+function drawStatusBars() {
+    const barWidth = 200;
+    const barHeight = 20;
+    const barSpacing = 30;
+    const barX = 10;
+    let barY = 10;
+
+    // Health bar
+    ctx.fillStyle = '#400';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(barX, barY, barWidth * (player.health / player.maxHealth), barHeight);
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial';
+    ctx.fillText(`Health: ${Math.ceil(player.health)}/${player.maxHealth}`, barX + 5, barY + 15);
+
+    // Energy bar
+    barY += barSpacing;
+    ctx.fillStyle = '#004';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    ctx.fillStyle = player.shootCooldown > 0 ? '#0066aa' : '#0af';
+    ctx.fillRect(barX, barY, barWidth * (player.energy / player.maxEnergy), barHeight);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`Energy: ${Math.ceil(player.energy)}/${player.maxEnergy}${player.shootCooldown > 0 ? ' (Cooling)' : ''}`, barX + 5, barY + 15);
+
+    // Gem bar
+    barY += barSpacing;
+    ctx.fillStyle = '#404';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    ctx.fillStyle = '#f0f';
+    
+    if (player.upgradeLevel >= 4) {
+        // At max level, show full bar and just gem count
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(`Gems: ${player.gems}`, barX + 5, barY + 15);
+    } else {
+        // Show progress to next level
+        let nextUpgradeGems;
+        switch(player.upgradeLevel) {
+            case 0:
+                nextUpgradeGems = UPGRADE_LEVELS.LEVEL1.gems;
+                break;
+            case 1:
+                nextUpgradeGems = UPGRADE_LEVELS.LEVEL2.gems;
+                break;
+            case 2:
+                nextUpgradeGems = UPGRADE_LEVELS.LEVEL3.gems;
+                break;
+            case 3:
+                nextUpgradeGems = UPGRADE_LEVELS.LEVEL4.gems;
+                break;
+        }
+        ctx.fillRect(barX, barY, barWidth * (player.gems / nextUpgradeGems), barHeight);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(`Gems: ${player.gems}/${nextUpgradeGems}`, barX + 5, barY + 15);
+    }
+
+    // Draw score
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px Arial';
+    ctx.fillText(`Score: ${score}`, barX, barY + 40);
+}
+
+function drawDebugInfo() {
+    if (!isDebugMode) return;
+    
+    ctx.fillStyle = '#ff0';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('DEBUG MODE', canvas.width - 10, canvas.height - 120);
+    ctx.fillText('K: Add 100 gems', canvas.width - 10, canvas.height - 100);
+    ctx.fillText('L: Fill health/energy', canvas.width - 10, canvas.height - 80);
+    ctx.fillText(';: Toggle invincibility' + (isInvincible ? ' (ON)' : ' (OFF)'), canvas.width - 10, canvas.height - 60);
+    
+    // Show additional debug info
+    ctx.fillText(`X: ${Math.round(player.x)}, Y: ${Math.round(player.y)}`, canvas.width - 10, canvas.height - 40);
+    ctx.fillText(`Enemies: ${enemies.length}, Asteroids: ${asteroids.length}`, canvas.width - 10, canvas.height - 20);
+    ctx.textAlign = 'left';
+}
+
 function gameLoop() {
     // Clear canvas
     ctx.fillStyle = '#000';
@@ -1450,11 +1536,11 @@ function gameLoop() {
         return;
     }
 
-    // Only run game logic if we're playing and have a player
-    if (gameState === 'PLAYING' && player) {
-        // Draw background
-        drawBackground();
+    // Draw background
+    drawBackground();
 
+    // Update and draw game objects only if not paused
+    if (gameState === 'PLAYING') {
         // Update player invincibility from debug mode
         if (isDebugMode && isInvincible) {
             player.invulnerable = true;
@@ -1476,101 +1562,22 @@ function gameLoop() {
 
         // Handle collisions
         handleCollisions();
+    }
 
-        // Draw everything
-        [...asteroids, ...enemies, ...healthPacks, ...gems].forEach(obj => obj.draw());
-        player.drawLasers();
-        player.draw();
+    // Always draw game objects
+    [...asteroids, ...enemies, ...healthPacks, ...gems].forEach(obj => obj.draw());
+    player.drawLasers();
+    player.draw();
 
-        // Draw minimap
-        drawMinimap();
+    // Draw UI elements
+    drawMinimap();
+    drawStatusBars();
+    drawDebugInfo();
+    drawPauseButton();
 
-        // Draw status bars at the top of the screen
-        const barWidth = 200;
-        const barHeight = 20;
-        const barSpacing = 30;
-        const barX = 10;
-        let barY = 10;
-
-        // Health bar
-        ctx.fillStyle = '#400';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-        ctx.fillStyle = '#f00';
-        ctx.fillRect(barX, barY, barWidth * (player.health / player.maxHealth), barHeight);
-        ctx.fillStyle = '#fff';
-        ctx.font = '14px Arial';
-        ctx.fillText(`Health: ${Math.ceil(player.health)}/${player.maxHealth}`, barX + 5, barY + 15);
-
-        // Energy bar
-        barY += barSpacing;
-        ctx.fillStyle = '#004';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-        ctx.fillStyle = player.shootCooldown > 0 ? '#0066aa' : '#0af';
-        ctx.fillRect(barX, barY, barWidth * (player.energy / player.maxEnergy), barHeight);
-        ctx.fillStyle = '#fff';
-        ctx.fillText(`Energy: ${Math.ceil(player.energy)}/${player.maxEnergy}${player.shootCooldown > 0 ? ' (Cooling)' : ''}`, barX + 5, barY + 15);
-
-        // Gem bar
-        barY += barSpacing;
-        ctx.fillStyle = '#404';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-        ctx.fillStyle = '#f0f';
-        
-        if (player.upgradeLevel >= 4) {
-            // At max level, show full bar and just gem count
-            ctx.fillRect(barX, barY, barWidth, barHeight);
-            ctx.fillStyle = '#fff';
-            ctx.fillText(`Gems: ${player.gems}`, barX + 5, barY + 15);
-        } else {
-            // Show progress to next level
-            let nextUpgradeGems;
-            switch(player.upgradeLevel) {
-                case 0:
-                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL1.gems;
-                    break;
-                case 1:
-                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL2.gems;
-                    break;
-                case 2:
-                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL3.gems;
-                    break;
-                case 3:
-                    nextUpgradeGems = UPGRADE_LEVELS.LEVEL4.gems;
-                    break;
-            }
-            ctx.fillRect(barX, barY, barWidth * (player.gems / nextUpgradeGems), barHeight);
-            ctx.fillStyle = '#fff';
-            ctx.fillText(`Gems: ${player.gems}/${nextUpgradeGems}`, barX + 5, barY + 15);
-        }
-
-        // Draw score
-        ctx.fillStyle = '#fff';
-        ctx.font = '20px Arial';
-        ctx.fillText(`Score: ${score}`, barX, barY + 40);
-
-        // Draw debug information if debug mode is enabled
-        if (isDebugMode) {
-            ctx.fillStyle = '#ff0';
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'right';
-            ctx.fillText('DEBUG MODE', canvas.width - 10, canvas.height - 120);
-            ctx.fillText('K: Add 100 gems', canvas.width - 10, canvas.height - 100);
-            ctx.fillText('L: Fill health/energy', canvas.width - 10, canvas.height - 80);
-            ctx.fillText(';: Toggle invincibility' + (isInvincible ? ' (ON)' : ' (OFF)'), canvas.width - 10, canvas.height - 60);
-            
-            // Show additional debug info
-            ctx.fillText(`X: ${Math.round(player.x)}, Y: ${Math.round(player.y)}`, canvas.width - 10, canvas.height - 40);
-            ctx.fillText(`Enemies: ${enemies.length}, Asteroids: ${asteroids.length}`, canvas.width - 10, canvas.height - 20);
-            ctx.textAlign = 'left';
-        }
-
-        // Draw pause button
-        drawPauseButton();
-
-        // Draw pause screen if paused
-        if (gameState === 'PAUSED') {
-            drawPauseScreen();
-        }
+    // Draw pause screen if paused
+    if (gameState === 'PAUSED') {
+        drawPauseScreen();
     }
 
     requestAnimationFrame(gameLoop);
@@ -1583,14 +1590,61 @@ function drawClassSelection() {
     
     ctx.fillStyle = '#fff';
     ctx.font = '48px Arial';
-    ctx.fillText('Select Your Ship', canvas.width/2 - 150, 100);
+    ctx.fillText('Space Game', canvas.width/2 - 120, 80);
+    
+    // Draw wipe save button in top left
+    const wipeBtn = {
+        x: 20,
+        y: 20,
+        width: 140,
+        height: 40
+    };
+    
+    ctx.fillStyle = mouse.x >= wipeBtn.x && mouse.x <= wipeBtn.x + wipeBtn.width &&
+                   mouse.y >= wipeBtn.y && mouse.y <= wipeBtn.y + wipeBtn.height
+                   ? '#e74c3c' : '#c0392b';
+    ctx.beginPath();
+    ctx.roundRect(wipeBtn.x, wipeBtn.y, wipeBtn.width, wipeBtn.height, 8);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Wipe Save', wipeBtn.x + wipeBtn.width/2, wipeBtn.y + 28);
+    
+    // Draw save button if game is in progress
+    if (player) {
+        const saveBtn = {
+            x: canvas.width - 160,
+            y: 20,
+            width: 140,
+            height: 40
+        };
+        
+        ctx.fillStyle = mouse.x >= saveBtn.x && mouse.x <= saveBtn.x + saveBtn.width &&
+                       mouse.y >= saveBtn.y && mouse.y <= saveBtn.y + saveBtn.height
+                       ? '#5DBE64' : '#4CAF50';
+        ctx.beginPath();
+        ctx.roundRect(saveBtn.x, saveBtn.y, saveBtn.width, saveBtn.height, 8);
+        ctx.fill();
+        
+        ctx.fillStyle = '#fff';
+        ctx.fillText('Save Game', saveBtn.x + saveBtn.width/2, saveBtn.y + 28);
+    }
+    ctx.textAlign = 'left';
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '32px Arial';
+    ctx.fillText('Select Your Ship', canvas.width/2 - 100, 350);
     
     const classes = Object.entries(SHIP_CLASSES);
     const spacing = canvas.width / (classes.length + 1);
+    const wavesCleared = getWavesCleared();
+    const gamesPlayed = getGamesPlayed();
     
     classes.forEach(([key, shipClass], index) => {
         const x = spacing * (index + 1);
-        const y = canvas.height / 2;
+        const y = canvas.height - 200;
         const width = 100;
         const height = 100;
         
@@ -1620,53 +1674,182 @@ function drawClassSelection() {
         ctx.font = '16px Arial';
         ctx.fillText(`Health: ${shipClass.health}`, x - width/2, y + height + 30);
         ctx.fillText(`Speed: ${shipClass.maxSpeed}`, x - width/2, y + height + 50);
+        
+        // Draw waves cleared and games played
+        const wavesCount = wavesCleared[shipClass.name] || 0;
+        const gamesCount = gamesPlayed[shipClass.name] || 0;
+        ctx.fillStyle = '#ffd700'; // Gold color for waves cleared
+        ctx.fillText(`Waves Cleared: ${wavesCount}`, x - width/2, y + height + 70);
+        ctx.fillStyle = '#87ceeb'; // Sky blue for games played
+        ctx.fillText(`Games Played: ${gamesCount}`, x - width/2, y + height + 90);
     });
-    
-    ctx.font = '24px Arial';
-    ctx.fillText('Click to select', canvas.width/2 - 70, canvas.height - 100);
+}
+
+// Add wipe save function
+function wipeSaveData() {
+    localStorage.removeItem('spaceGameSave_1');
+    localStorage.removeItem('spaceGameSaveMetadata');
+    localStorage.removeItem('spaceGameWavesCleared');
+    localStorage.removeItem('spaceGameGamesPlayed');
+    showNotification('All save data wiped!', 'warning');
+    player = null;
 }
 
 // Add click handler for class selection
 canvas.addEventListener('click', (e) => {
-    if (gameState !== 'CLASS_SELECT') return;
+    // Check pause button click
+    const buttonSize = 30;
+    const margin = 10;
+    const x = canvas.width - buttonSize - margin;
+    const y = margin;
     
-    const classes = Object.entries(SHIP_CLASSES);
-    const spacing = canvas.width / (classes.length + 1);
-    
-    classes.forEach(([key, shipClass], index) => {
-        const x = spacing * (index + 1);
-        const y = canvas.height / 2;
-        const width = 100;
-        const height = 100;
-        
-        if (e.clientX > x - width/2 && 
-            e.clientX < x + width/2 && 
-            e.clientY > y - height/2 && 
-            e.clientY < y + height/2) {
-            console.log('Selected ship:', shipClass.name);
-            selectedClass = shipClass;
-            
-            // Reset game state
-            player = new Player(shipClass);
-            enemies = [];
-            asteroids = [];
-            healthPacks = [];
-            gems = [];
-            gameOver = false;
-            score = 0;
-            
-            // Reset camera
-            camera.x = player.x - canvas.width / 2;
-            camera.y = player.y - canvas.height / 2;
-            
-            // Initialize wave system
-            window.waveNumber = 1;
-            window.enemiesRemainingInWave = 0;
-            window.waveTimer = 0;
-            
+    if (e.clientX >= x && e.clientX <= x + buttonSize &&
+        e.clientY >= y && e.clientY <= y + buttonSize) {
+        if (gameState === 'PLAYING') {
+            gameState = 'PAUSED';
+            isPaused = true;
+        } else if (gameState === 'PAUSED') {
             gameState = 'PLAYING';
+            isPaused = false;
         }
-    });
+        return;
+    }
+
+    if (gameState === 'CLASS_SELECT') {
+        // Check wipe save button
+        const wipeBtn = {
+            x: 20,
+            y: 20,
+            width: 140,
+            height: 40
+        };
+        
+        if (e.clientX >= wipeBtn.x && e.clientX <= wipeBtn.x + wipeBtn.width &&
+            e.clientY >= wipeBtn.y && e.clientY <= wipeBtn.y + wipeBtn.height) {
+            wipeSaveData();
+            return;
+        }
+
+        // Check save slot clicks
+        const saveMetadata = getSaveMetadata();
+        for (let i = 1; i <= 3; i++) {
+            const btn = {
+                x: canvas.width/2 - 150,
+                y: 120 + (i - 1) * 60,
+                width: 300,
+                height: 50
+            };
+            
+            if (e.clientX >= btn.x && e.clientX <= btn.x + btn.width &&
+                e.clientY >= btn.y && e.clientY <= btn.y + btn.height) {
+                console.log('Loading save from slot', i); // Debug log
+                if (loadGame(i)) {
+                    gameState = 'PLAYING';
+                    isPaused = false;
+                } else {
+                    // Show notification for empty or corrupted save slot
+                    showNotification('No save data found in this slot');
+                }
+                return;
+            }
+        }
+        
+        // Check ship class selection
+        const classes = Object.entries(SHIP_CLASSES);
+        const spacing = canvas.width / (classes.length + 1);
+        
+        classes.forEach(([key, shipClass], index) => {
+            const x = spacing * (index + 1);
+            const y = canvas.height - 200;
+            const width = 100;
+            const height = 100;
+            
+            if (e.clientX > x - width/2 && 
+                e.clientX < x + width/2 && 
+                e.clientY > y - height/2 && 
+                e.clientY < y + height/2) {
+                selectedClass = shipClass;
+                
+                // Reset game state
+                player = new Player(shipClass);
+                enemies = [];
+                asteroids = [];
+                healthPacks = [];
+                gems = [];
+                gameOver = false;
+                score = 0;
+                
+                // Reset camera
+                camera.x = player.x - canvas.width / 2;
+                camera.y = player.y - canvas.height / 2;
+                
+                // Initialize wave system
+                window.waveNumber = 1;
+                window.enemiesRemainingInWave = Math.min(5 + window.waveNumber * 2, 25);
+                window.waveStartTime = Date.now();
+                window.waveTimer = 0;
+                
+                gameState = 'PLAYING';
+                isPaused = false;
+                
+                // Increment games played when starting a new game
+                incrementGamesPlayed(shipClass.name);
+            }
+        });
+        return;
+    }
+
+    // Handle pause menu clicks
+    if (gameState === 'PAUSED') {
+        // Resume button
+        const resumeBtn = {
+            x: canvas.width/2 - 150,
+            y: canvas.height/2 - 50,
+            width: 300,
+            height: 50
+        };
+        
+        if (e.clientX >= resumeBtn.x && e.clientX <= resumeBtn.x + resumeBtn.width &&
+            e.clientY >= resumeBtn.y && e.clientY <= resumeBtn.y + resumeBtn.height) {
+            gameState = 'PLAYING';
+            isPaused = false;
+            return;
+        }
+
+        // Exit button
+        const exitBtn = {
+            x: canvas.width/2 - 150,
+            y: canvas.height/2 + 20,
+            width: 300,
+            height: 50
+        };
+        
+        if (e.clientX >= exitBtn.x && e.clientX <= exitBtn.x + exitBtn.width &&
+            e.clientY >= exitBtn.y && e.clientY <= exitBtn.y + exitBtn.height) {
+            // Save the game before exiting
+            saveGame(1);
+            // Reset game state without incrementing games played
+            gameState = 'CLASS_SELECT';
+            isPaused = false;
+            return;
+        }
+    }
+
+    // Check save button click in class selection
+    if (gameState === 'CLASS_SELECT' && player) {
+        const saveBtn = {
+            x: canvas.width - 160,
+            y: 20,
+            width: 140,
+            height: 40
+        };
+        
+        if (e.clientX >= saveBtn.x && e.clientX <= saveBtn.x + saveBtn.width &&
+            e.clientY >= saveBtn.y && e.clientY <= saveBtn.y + saveBtn.height) {
+            saveGame(1); // Save to slot 1 by default
+            return;
+        }
+    }
 });
 
 // Add pause button
@@ -1699,42 +1882,76 @@ function drawPauseButton() {
 
 // Add pause screen
 function drawPauseScreen() {
-    // Darken the game screen
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    // Semi-transparent dark overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw pause text
+    // Title with shadow
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 10;
     ctx.fillStyle = '#fff';
     ctx.font = '48px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('PAUSED', canvas.width/2, canvas.height/2);
-    ctx.font = '24px Arial';
-    ctx.fillText('Press P or click the pause button to resume', canvas.width/2, canvas.height/2 + 40);
-    ctx.textAlign = 'left';
-}
+    ctx.fillText('PAUSED', canvas.width/2, canvas.height/2 - 100);
+    
+    // Reset shadow
+    ctx.shadowBlur = 0;
 
-// Add pause button click handler
-canvas.addEventListener('click', (e) => {
-    if (gameState !== 'CLASS_SELECT' && gameState !== 'GAME_OVER') {
-        const buttonSize = 30;
-        const margin = 10;
-        const x = canvas.width - buttonSize - margin;
-        const y = margin;
-        
-        if (e.clientX >= x && e.clientX <= x + buttonSize &&
-            e.clientY >= y && e.clientY <= y + buttonSize) {
-            isPaused = !isPaused;
-            gameState = isPaused ? 'PAUSED' : 'PLAYING';
-        }
-    }
-});
+    // Draw resume button
+    const resumeBtn = {
+        x: canvas.width/2 - 150,
+        y: canvas.height/2 - 50,
+        width: 300,
+        height: 50
+    };
+    
+    ctx.fillStyle = mouse.x >= resumeBtn.x && mouse.x <= resumeBtn.x + resumeBtn.width &&
+                   mouse.y >= resumeBtn.y && mouse.y <= resumeBtn.y + resumeBtn.height
+                   ? '#5DBE64' : '#4CAF50';
+    ctx.beginPath();
+    ctx.roundRect(resumeBtn.x, resumeBtn.y, resumeBtn.width, resumeBtn.height, 8);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Arial';
+    ctx.fillText('Resume Game', canvas.width/2, resumeBtn.y + 32);
+
+    // Draw exit button
+    const exitBtn = {
+        x: canvas.width/2 - 150,
+        y: canvas.height/2 + 20,
+        width: 300,
+        height: 50
+    };
+    
+    ctx.fillStyle = mouse.x >= exitBtn.x && mouse.x <= exitBtn.x + exitBtn.width &&
+                   mouse.y >= exitBtn.y && mouse.y <= exitBtn.y + exitBtn.height
+                   ? '#e74c3c' : '#c0392b';
+    ctx.beginPath();
+    ctx.roundRect(exitBtn.x, exitBtn.y, exitBtn.width, exitBtn.height, 8);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Arial';
+    ctx.fillText('Exit to Title', canvas.width/2, exitBtn.y + 32);
+    
+    // Instructions text
+    ctx.font = '20px Arial';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('Press P to resume', canvas.width/2, canvas.height/2 + 180);
+}
 
 // Add pause key handler
 window.addEventListener('keydown', (e) => {
     if (e.key === 'p' || e.key === 'P') {
         if (gameState !== 'CLASS_SELECT' && gameState !== 'GAME_OVER') {
-            isPaused = !isPaused;
-            gameState = isPaused ? 'PAUSED' : 'PLAYING';
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                isPaused = true;
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                isPaused = false;
+            }
         }
     }
 
@@ -1761,6 +1978,223 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// Start the game
-// Initialize player as null since we'll create it after class selection
-gameLoop(); 
+// Update pause button click handler
+canvas.addEventListener('click', (e) => {
+    // Check if pause button was clicked
+    const buttonSize = 30;
+    const margin = 10;
+    const x = canvas.width - buttonSize - margin;
+    const y = margin;
+    
+    if (e.clientX >= x && e.clientX <= x + buttonSize &&
+        e.clientY >= y && e.clientY <= y + buttonSize) {
+        if (gameState === 'PLAYING') {
+            gameState = 'PAUSED';
+            isPaused = true;
+        } else if (gameState === 'PAUSED') {
+            gameState = 'PLAYING';
+            isPaused = false;
+        }
+        return;
+    }
+
+    // Handle save slot clicks when paused
+    if (gameState === 'PAUSED') {
+        for (let i = 1; i <= 3; i++) {
+            const btn = {
+                x: canvas.width/2 - 150,
+                y: canvas.height/2 - 80 + (i - 1) * 60,
+                width: 300,
+                height: 50
+            };
+            
+            if (e.clientX >= btn.x && e.clientX <= btn.x + btn.width &&
+                e.clientY >= btn.y && e.clientY <= btn.y + btn.height) {
+                saveGame(i);
+                return;
+            }
+        }
+    }
+});
+
+// Add after the game state variables
+function saveGame(slotNumber = 1) {
+    if (!player || gameState !== 'PLAYING') return;
+
+    const gameData = {
+        // Player data
+        playerState: {
+            shipClass: player.shipClass.name,
+            x: player.x,
+            y: player.y,
+            health: player.health,
+            maxHealth: player.maxHealth,
+            energy: player.energy,
+            maxEnergy: player.maxEnergy,
+            gems: player.gems,
+            upgradeLevel: player.upgradeLevel
+        },
+        // Game progress
+        score: score,
+        waveNumber: window.waveNumber,
+        enemiesRemainingInWave: window.enemiesRemainingInWave,
+        // Save metadata
+        savedAt: Date.now(),
+        lastPlayedAt: Date.now()
+    };
+
+    // Save to specific slot
+    localStorage.setItem(`spaceGameSave_${slotNumber}`, JSON.stringify(gameData));
+    
+    // Update save metadata
+    const saveMetadata = getSaveMetadata();
+    saveMetadata[slotNumber] = {
+        timestamp: Date.now(),
+        score: score,
+        waveNumber: window.waveNumber,
+        shipClass: player.shipClass.name,
+        upgradeLevel: player.upgradeLevel
+    };
+    localStorage.setItem('spaceGameSaveMetadata', JSON.stringify(saveMetadata));
+    
+    // Visual feedback
+    showNotification('Game Saved!');
+}
+
+function loadGame(slotNumber = 1) {
+    const savedData = localStorage.getItem(`spaceGameSave_${slotNumber}`);
+    if (!savedData) {
+        console.log('No save data found in slot', slotNumber);
+        return false;
+    }
+
+    try {
+        const gameData = JSON.parse(savedData);
+        
+        // Update last played timestamp
+        gameData.lastPlayedAt = Date.now();
+        localStorage.setItem(`spaceGameSave_${slotNumber}`, JSON.stringify(gameData));
+
+        // Create player with saved ship class
+        const shipClass = SHIP_CLASSES[Object.keys(SHIP_CLASSES).find(
+            key => SHIP_CLASSES[key].name === gameData.playerState.shipClass
+        )];
+        
+        if (!shipClass) {
+            console.error('Invalid ship class in save data');
+            return false;
+        }
+
+        player = new Player(shipClass);
+
+        // Restore player state
+        Object.assign(player, gameData.playerState);
+
+        // Restore game progress
+        score = gameData.score;
+        window.waveNumber = gameData.waveNumber;
+        window.enemiesRemainingInWave = gameData.enemiesRemainingInWave;
+
+        // Reset other game objects
+        enemies = [];
+        asteroids = [];
+        healthPacks = [];
+        gems = [];
+        gameOver = false;
+
+        // Update camera
+        camera.x = player.x - canvas.width / 2;
+        camera.y = player.y - canvas.height / 2;
+
+        console.log('Successfully loaded save from slot', slotNumber);
+        return true;
+    } catch (error) {
+        console.error('Error loading save:', error);
+        return false;
+    }
+}
+
+function getSaveMetadata() {
+    const metadata = localStorage.getItem('spaceGameSaveMetadata');
+    return metadata ? JSON.parse(metadata) : {};
+}
+
+function deleteSave(slotNumber = 1) {
+    localStorage.removeItem(`spaceGameSave_${slotNumber}`);
+    const saveMetadata = getSaveMetadata();
+    delete saveMetadata[slotNumber];
+    localStorage.setItem('spaceGameSaveMetadata', JSON.stringify(saveMetadata));
+}
+
+// Update showNotification function to support different colors
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.left = '50%';
+    notification.style.transform = 'translateX(-50%)';
+    notification.style.backgroundColor = type === 'success' ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 165, 0, 0.8)';
+    notification.style.padding = '10px 20px';
+    notification.style.borderRadius = '5px';
+    notification.style.color = 'white';
+    notification.style.fontFamily = 'Arial';
+    notification.style.zIndex = '1000';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => notification.remove(), 2000);
+}
+
+// Add auto-save on exit
+window.addEventListener('beforeunload', () => {
+    if (player && gameState === 'PLAYING') {
+        saveGame(1); // Auto-save to slot 1 when closing
+    }
+});
+
+// Initialize game with auto-load
+function initializeGame() {
+    // Try to load the save from slot 1
+    if (loadGame(1)) {
+        gameState = 'CLASS_SELECT';
+        showNotification('Game loaded!', 'success');
+    } else {
+        // No save found, start fresh
+        gameState = 'CLASS_SELECT';
+        player = null;
+    }
+}
+
+// Start the game with auto-load
+initializeGame();
+gameLoop();
+
+function getWavesCleared() {
+    const wavesData = localStorage.getItem('spaceGameWavesCleared');
+    return wavesData ? JSON.parse(wavesData) : {
+        Fighter: 0,
+        Tank: 0,
+        Speedster: 0
+    };
+}
+
+function updateWavesCleared(shipClassName, waveNumber) {
+    const wavesData = getWavesCleared();
+    wavesData[shipClassName] = Math.max(wavesData[shipClassName], waveNumber);
+    localStorage.setItem('spaceGameWavesCleared', JSON.stringify(wavesData));
+}
+
+function getGamesPlayed() {
+    const gamesData = localStorage.getItem('spaceGameGamesPlayed');
+    return gamesData ? JSON.parse(gamesData) : {
+        Fighter: 0,
+        Tank: 0,
+        Speedster: 0
+    };
+}
+
+function incrementGamesPlayed(shipClassName) {
+    const gamesData = getGamesPlayed();
+    gamesData[shipClassName] = (gamesData[shipClassName] || 0) + 1;
+    localStorage.setItem('spaceGameGamesPlayed', JSON.stringify(gamesData));
+}
