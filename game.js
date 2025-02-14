@@ -62,7 +62,8 @@ const SHIP_CLASSES = {
         shootCost: 10,
         maxEnergy: 100,
         energyRegen: 0.3,
-        color: '#00ff00'
+        color: '#00ff00',
+        xpRequired: 0
     },
     TANK: {
         name: 'Tank',
@@ -74,7 +75,8 @@ const SHIP_CLASSES = {
         shootCost: 15,
         maxEnergy: 150,
         energyRegen: 0.2,
-        color: '#00aaff'
+        color: '#00aaff',
+        xpRequired: 0
     },
     SPEEDSTER: {
         name: 'Speedster',
@@ -86,7 +88,21 @@ const SHIP_CLASSES = {
         shootCost: 8,
         maxEnergy: 80,
         energyRegen: 0.4,
-        color: '#ff00ff'
+        color: '#ff00ff',
+        xpRequired: 0
+    },
+    SNIPER: {
+        name: 'Sniper',
+        description: 'Single powerful cannon, slow but deadly',
+        health: 75,
+        maxSpeed: 6,
+        acceleration: 0.25,
+        rotationalAcceleration: 0.02,
+        shootCost: 25,
+        maxEnergy: 120,
+        energyRegen: 0.2,
+        color: '#ffff00',
+        xpRequired: 100
     }
 };
 
@@ -285,6 +301,52 @@ class Player {
                 ctx.fill();
             } else {
                 // Level 3+ - high-tech racer
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 3, this.height / 4);
+                ctx.lineTo(0, this.height / 3);
+                ctx.lineTo(-this.width / 2, this.height / 4);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 4);
+                ctx.lineTo(0, -this.height / 3);
+                ctx.lineTo(this.width / 3, -this.height / 4);
+                ctx.closePath();
+                ctx.fill();
+            }
+        } else if (this.shipClass.name === 'Sniper') {
+            if (this.upgradeLevel === 0) {
+                // Basic sniper - slow and powerful
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(-this.width / 3, this.height / 3);
+                ctx.lineTo(-this.width / 4, 0);
+                ctx.lineTo(-this.width / 3, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 1) {
+                // Level 1 - improved accuracy
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(0, this.height / 4);
+                ctx.lineTo(-this.width / 2, this.height / 3);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 3);
+                ctx.lineTo(0, -this.height / 4);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 2) {
+                // Level 2 - enhanced range
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 4, this.height / 4);
+                ctx.lineTo(-this.width / 3, this.height / 3);
+                ctx.lineTo(-this.width / 4, 0);
+                ctx.lineTo(-this.width / 3, -this.height / 3);
+                ctx.lineTo(this.width / 4, -this.height / 4);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Level 3+ - master sniper
                 ctx.beginPath();
                 ctx.moveTo(this.width / 2, 0);
                 ctx.lineTo(this.width / 3, this.height / 4);
@@ -560,25 +622,58 @@ class Player {
                     }
                     break;
             }
+        } else if (this.shipClass.name === 'Sniper') {
+            switch(this.upgradeLevel) {
+                case 0: // Single powerful shot
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation, 1.5, 8);
+                    }
+                    break;
+                case 1: // Two powerful shots
+                    energyCost *= 1.5;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation - 0.03, 1.5, 8);
+                        this.createLaser(this.rotation + 0.03, 1.5, 8);
+                    }
+                    break;
+                case 2: // Three powerful shots
+                    energyCost *= 2;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation - 0.05, 1.5, 8);
+                        this.createLaser(this.rotation, 1.8, 8);
+                        this.createLaser(this.rotation + 0.05, 1.5, 8);
+                    }
+                    break;
+                default: // Level 3+ - Four powerful shots
+                    energyCost *= 2.5;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(this.rotation - 0.08, 1.5, 8);
+                        this.createLaser(this.rotation - 0.03, 1.8, 8);
+                        this.createLaser(this.rotation + 0.03, 1.8, 8);
+                        this.createLaser(this.rotation + 0.08, 1.5, 8);
+                    }
+                    break;
+            }
         }
         
         if (this.energy >= energyCost) {
             this.energy -= energyCost;
-            this.shootCooldown = this.maxShootCooldown;
+            // Sniper has longer cooldown
+            this.shootCooldown = this.shipClass.name === 'Sniper' ? this.maxShootCooldown * 2.5 : this.maxShootCooldown;
         }
     }
 
-    createLaser(angle, sizeMultiplier = 1) {
+    createLaser(angle, sizeMultiplier = 1, speedMultiplier = 1) {
         const laser = {
             x: this.x,
             y: this.y,
-            velocityX: Math.cos(angle) * 10 + this.velocityX,
-            velocityY: Math.sin(angle) * 10 + this.velocityY,
+            velocityX: Math.cos(angle) * (10 * speedMultiplier) + this.velocityX,
+            velocityY: Math.sin(angle) * (10 * speedMultiplier) + this.velocityY,
             width: 4 * sizeMultiplier,
             height: 4 * sizeMultiplier,
             rotation: angle,
             color: this.upgradeLevel >= 2 ? this.color : '#ff0000',
-            damage: 10 * sizeMultiplier
+            damage: this.shipClass.name === 'Sniper' ? 25 * sizeMultiplier : 10 * sizeMultiplier
         };
         this.lasers.push(laser);
     }
@@ -609,7 +704,7 @@ class Player {
         }
         // Temporary invulnerability
         this.invulnerable = true;
-        this.invulnerableTime = 60; // 1 second at 60fps
+        this.invulnerableTime = 20; // Reduced from 60 to 20 frames (0.33 seconds)
     }
 
     heal(amount) {
@@ -1015,6 +1110,8 @@ class Gem {
         this.velocityX = (Math.random() - 0.5) * 4;
         this.velocityY = (Math.random() - 0.5) * 4;
         this.friction = 0.98;
+        this.attractionRadius = 150; // Radius within which gems are attracted to player
+        this.maxAttractionSpeed = 8; // Maximum speed when being attracted
     }
 
     draw() {
@@ -1038,6 +1135,31 @@ class Gem {
     }
 
     update() {
+        // Check if player exists and gem is within attraction radius
+        if (player) {
+            const distToPlayer = distance(this.x, this.y, player.x, player.y);
+            if (distToPlayer < this.attractionRadius) {
+                // Calculate direction to player
+                const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                
+                // Attraction force increases as gem gets closer to player
+                const attractionStrength = 0.5 * (1 - distToPlayer / this.attractionRadius);
+                
+                // Apply attraction force
+                this.velocityX += Math.cos(angle) * attractionStrength;
+                this.velocityY += Math.sin(angle) * attractionStrength;
+                
+                // Limit attraction speed
+                const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+                if (speed > this.maxAttractionSpeed) {
+                    const ratio = this.maxAttractionSpeed / speed;
+                    this.velocityX *= ratio;
+                    this.velocityY *= ratio;
+                }
+            }
+        }
+
+        // Apply existing physics
         this.velocityX *= this.friction;
         this.velocityY *= this.friction;
         this.x += this.velocityX;
@@ -1247,13 +1369,26 @@ function handleCollisions() {
         });
     });
 
-    // Check laser hits
+    // Check laser hits with ray-casting
     player.lasers.forEach((laser, laserIndex) => {
-        // Check enemies
+        // Store the previous position
+        const prevX = laser.x - laser.velocityX;
+        const prevY = laser.y - laser.velocityY;
+        
+        // Check enemies with ray-casting
+        let hitSomething = false;
         enemies.forEach((enemy, enemyIndex) => {
-            if (distance(laser.x, laser.y, enemy.x, enemy.y) < enemy.width) {
-                enemy.takeDamage(10);
-                player.lasers.splice(laserIndex, 1);
+            // Check if line segment intersects with enemy circle
+            const hit = lineCircleIntersect(
+                prevX, prevY,
+                laser.x, laser.y,
+                enemy.x, enemy.y,
+                enemy.width/2
+            );
+            
+            if (hit) {
+                hitSomething = true;
+                enemy.takeDamage(laser.damage);
                 if (enemy.health <= 0) {
                     // Drop gems when enemy is destroyed
                     const gemCount = Math.floor(Math.random() * 3) + 1;
@@ -1266,11 +1401,18 @@ function handleCollisions() {
             }
         });
 
-        // Check asteroids
+        // Check asteroids with ray-casting
         asteroids.forEach((asteroid, asteroidIndex) => {
-            if (distance(laser.x, laser.y, asteroid.x, asteroid.y) < asteroid.width/2) {
-                asteroid.health -= 10;
-                player.lasers.splice(laserIndex, 1);
+            const hit = lineCircleIntersect(
+                prevX, prevY,
+                laser.x, laser.y,
+                asteroid.x, asteroid.y,
+                asteroid.width/2
+            );
+            
+            if (hit) {
+                hitSomething = true;
+                asteroid.health -= laser.damage;
                 if (asteroid.health <= 0) {
                     // Drop gems when asteroid is destroyed
                     const gemCount = Math.floor(Math.random() * 2) + 1;
@@ -1282,6 +1424,11 @@ function handleCollisions() {
                 }
             }
         });
+
+        // Remove laser if it hit something
+        if (hitSomething) {
+            player.lasers.splice(laserIndex, 1);
+        }
     });
 
     // Check player collisions with enemies and asteroids
@@ -1344,6 +1491,8 @@ function handleCollisions() {
     gems = gems.filter(gem => {
         if (distance(player.x, player.y, gem.x, gem.y) < playerRadius + gem.width) {
             player.collectGems(gem.amount);
+            // Add XP when collecting gems
+            addXP(gem.amount);
             return false;
         }
         return true;
@@ -1504,9 +1653,10 @@ function drawDebugInfo() {
     ctx.fillStyle = '#ff0';
     ctx.font = '16px Arial';
     ctx.textAlign = 'right';
-    ctx.fillText('DEBUG MODE', canvas.width - 10, canvas.height - 120);
-    ctx.fillText('K: Add 100 gems', canvas.width - 10, canvas.height - 100);
-    ctx.fillText('L: Fill health/energy', canvas.width - 10, canvas.height - 80);
+    ctx.fillText('DEBUG MODE', canvas.width - 10, canvas.height - 140);
+    ctx.fillText('K: Add 100 gems', canvas.width - 10, canvas.height - 120);
+    ctx.fillText('L: Fill health/energy', canvas.width - 10, canvas.height - 100);
+    ctx.fillText('M: Add 1000 score', canvas.width - 10, canvas.height - 80);
     ctx.fillText(';: Toggle invincibility' + (isInvincible ? ' (ON)' : ' (OFF)'), canvas.width - 10, canvas.height - 60);
     
     // Show additional debug info
@@ -1588,9 +1738,16 @@ function drawClassSelection() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
+    // Draw title
     ctx.fillStyle = '#fff';
     ctx.font = '48px Arial';
-    ctx.fillText('Space Game', canvas.width/2 - 120, 80);
+    ctx.textAlign = 'center';
+    ctx.fillText('Space Game', canvas.width/2, 60);
+    
+    // Draw XP counter
+    ctx.font = '24px Arial';
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText(`XP: ${getXP()}`, canvas.width/2, 100);
     
     // Draw wipe save button in top left
     const wipeBtn = {
@@ -1631,35 +1788,37 @@ function drawClassSelection() {
         ctx.fillStyle = '#fff';
         ctx.fillText('Save Game', saveBtn.x + saveBtn.width/2, saveBtn.y + 28);
     }
-    ctx.textAlign = 'left';
     
     ctx.fillStyle = '#fff';
     ctx.font = '32px Arial';
-    ctx.fillText('Select Your Ship', canvas.width/2 - 100, 350);
+    ctx.fillText('Select Your Ship', canvas.width/2, 150);
     
     const classes = Object.entries(SHIP_CLASSES);
     const spacing = canvas.width / (classes.length + 1);
     const wavesCleared = getWavesCleared();
-    const gamesPlayed = getGamesPlayed();
+    const currentXP = getXP();
     
     classes.forEach(([key, shipClass], index) => {
         const x = spacing * (index + 1);
-        const y = canvas.height - 200;
+        const y = canvas.height/2;
         const width = 100;
         const height = 100;
         
+        const isLocked = currentXP < shipClass.xpRequired;
+        
         // Draw selection box
-        ctx.strokeStyle = mouse.x > x - width/2 && 
+        ctx.strokeStyle = isLocked ? '#444' : 
+                         (mouse.x > x - width/2 && 
                          mouse.x < x + width/2 && 
                          mouse.y > y - height/2 && 
-                         mouse.y < y + height/2 
+                         mouse.y < y + height/2)
                          ? shipClass.color 
                          : '#666';
         ctx.lineWidth = 3;
         ctx.strokeRect(x - width/2, y - height/2, width, height);
         
         // Draw ship preview
-        ctx.fillStyle = shipClass.color;
+        ctx.fillStyle = isLocked ? '#444' : shipClass.color;
         ctx.beginPath();
         ctx.moveTo(x + width/4, y);
         ctx.lineTo(x - width/4, y + height/4);
@@ -1668,21 +1827,25 @@ function drawClassSelection() {
         ctx.fill();
         
         // Draw ship name and stats
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = isLocked ? '#666' : '#fff';
         ctx.font = '24px Arial';
-        ctx.fillText(shipClass.name, x - width/2, y + height);
+        ctx.fillText(shipClass.name, x, y + height);
         ctx.font = '16px Arial';
-        ctx.fillText(`Health: ${shipClass.health}`, x - width/2, y + height + 30);
-        ctx.fillText(`Speed: ${shipClass.maxSpeed}`, x - width/2, y + height + 50);
         
-        // Draw waves cleared and games played
-        const wavesCount = wavesCleared[shipClass.name] || 0;
-        const gamesCount = gamesPlayed[shipClass.name] || 0;
-        ctx.fillStyle = '#ffd700'; // Gold color for waves cleared
-        ctx.fillText(`Waves Cleared: ${wavesCount}`, x - width/2, y + height + 70);
-        ctx.fillStyle = '#87ceeb'; // Sky blue for games played
-        ctx.fillText(`Games Played: ${gamesCount}`, x - width/2, y + height + 90);
+        if (isLocked) {
+            ctx.fillText(`Requires ${shipClass.xpRequired} XP`, x, y + height + 25);
+        } else {
+            ctx.fillText(`Health: ${shipClass.health}`, x, y + height + 25);
+            ctx.fillText(`Speed: ${shipClass.maxSpeed}`, x, y + height + 45);
+            
+            // Draw waves cleared
+            const wavesCount = wavesCleared[shipClass.name] || 0;
+            ctx.fillStyle = '#ffd700';
+            ctx.fillText(`Best Wave: ${wavesCount}`, x, y + height + 65);
+        }
     });
+    
+    ctx.textAlign = 'left';
 }
 
 // Add wipe save function
@@ -1730,26 +1893,18 @@ canvas.addEventListener('click', (e) => {
             return;
         }
 
-        // Check save slot clicks
-        const saveMetadata = getSaveMetadata();
-        for (let i = 1; i <= 3; i++) {
-            const btn = {
-                x: canvas.width/2 - 150,
-                y: 120 + (i - 1) * 60,
-                width: 300,
-                height: 50
+        // Check save button click if game is in progress
+        if (player) {
+            const saveBtn = {
+                x: canvas.width - 160,
+                y: 20,
+                width: 140,
+                height: 40
             };
             
-            if (e.clientX >= btn.x && e.clientX <= btn.x + btn.width &&
-                e.clientY >= btn.y && e.clientY <= btn.y + btn.height) {
-                console.log('Loading save from slot', i); // Debug log
-                if (loadGame(i)) {
-                    gameState = 'PLAYING';
-                    isPaused = false;
-                } else {
-                    // Show notification for empty or corrupted save slot
-                    showNotification('No save data found in this slot');
-                }
+            if (e.clientX >= saveBtn.x && e.clientX <= saveBtn.x + saveBtn.width &&
+                e.clientY >= saveBtn.y && e.clientY <= saveBtn.y + saveBtn.height) {
+                saveGame(1); // Save to slot 1 by default
                 return;
             }
         }
@@ -1760,7 +1915,7 @@ canvas.addEventListener('click', (e) => {
         
         classes.forEach(([key, shipClass], index) => {
             const x = spacing * (index + 1);
-            const y = canvas.height - 200;
+            const y = canvas.height/2;  // This is where ships are actually drawn
             const width = 100;
             const height = 100;
             
@@ -1768,6 +1923,13 @@ canvas.addEventListener('click', (e) => {
                 e.clientX < x + width/2 && 
                 e.clientY > y - height/2 && 
                 e.clientY < y + height/2) {
+                
+                // Check if ship is locked
+                if (getXP() < shipClass.xpRequired) {
+                    showNotification(`Need ${shipClass.xpRequired} XP to unlock ${shipClass.name}`, 'warning');
+                    return;
+                }
+                
                 selectedClass = shipClass;
                 
                 // Reset game state
@@ -1826,6 +1988,11 @@ canvas.addEventListener('click', (e) => {
         
         if (e.clientX >= exitBtn.x && e.clientX <= exitBtn.x + exitBtn.width &&
             e.clientY >= exitBtn.y && e.clientY <= exitBtn.y + exitBtn.height) {
+            // Add XP before exiting
+            const xpGained = Math.floor(score / 100);
+            addXP(xpGained);
+            showNotification(`Gained ${xpGained} XP!`);
+            
             // Save the game before exiting
             saveGame(1);
             // Reset game state without incrementing games played
@@ -1973,6 +2140,10 @@ window.addEventListener('keydown', (e) => {
                 break;
             case ';':
                 isInvincible = !isInvincible;
+                break;
+            case 'm':
+            case 'M':
+                score += 1000;
                 break;
         }
     }
@@ -2197,4 +2368,45 @@ function incrementGamesPlayed(shipClassName) {
     const gamesData = getGamesPlayed();
     gamesData[shipClassName] = (gamesData[shipClassName] || 0) + 1;
     localStorage.setItem('spaceGameGamesPlayed', JSON.stringify(gamesData));
+}
+
+function getXP() {
+    const xp = localStorage.getItem('spaceGameXP');
+    return xp ? parseInt(xp) : 0;
+}
+
+function addXP(amount) {
+    const currentXP = getXP();
+    localStorage.setItem('spaceGameXP', currentXP + amount);
+}
+
+// Add this helper function for ray-casting collision detection
+function lineCircleIntersect(x1, y1, x2, y2, cx, cy, r) {
+    // Convert line to vector form
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    
+    // Calculate vector from line start to circle center
+    const fx = x1 - cx;
+    const fy = y1 - cy;
+    
+    // Calculate quadratic equation coefficients
+    const a = dx * dx + dy * dy;
+    const b = 2 * (fx * dx + fy * dy);
+    const c = (fx * fx + fy * fy) - r * r;
+    
+    // Calculate discriminant
+    const discriminant = b * b - 4 * a * c;
+    
+    if (discriminant < 0) {
+        // No intersection
+        return false;
+    }
+    
+    // Calculate intersection points
+    const t1 = (-b - Math.sqrt(discriminant)) / (2 * a);
+    const t2 = (-b + Math.sqrt(discriminant)) / (2 * a);
+    
+    // Check if intersection occurs within line segment
+    return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
 }
