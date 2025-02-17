@@ -59,7 +59,9 @@ class Player {
                 maxCooldown: 0,
                 duration: 0,
                 remainingDuration: 0,
-                active: false
+                active: false,
+                unlocked: false,
+                description: ''
             },
             ability2: {
                 name: '',
@@ -67,88 +69,91 @@ class Player {
                 maxCooldown: 0,
                 duration: 0,
                 remainingDuration: 0,
-                active: false
+                active: false,
+                unlocked: false,
+                description: ''
             }
         };
 
         // Set up class-specific abilities
-        switch(shipClass.name) {
-            case 'Fighter':
-                this.abilities.ability1 = {
+        const abilities = {
+            Fighter: {
+                ability1: {
                     name: 'Reload',
-                    cooldown: 0,
-                    maxCooldown: 15 * 60, // 15 seconds at 60 FPS
+                    maxCooldown: 15 * 60,
                     duration: 0,
-                    remainingDuration: 0,
-                    active: false
-                };
-                this.abilities.ability2 = {
+                    description: 'Instantly restore energy'
+                },
+                ability2: {
                     name: 'Boost',
-                    cooldown: 0,
                     maxCooldown: 30 * 60,
                     duration: 5 * 60,
-                    remainingDuration: 0,
-                    active: false
-                };
-                break;
-            case 'Tank':
-                this.abilities.ability1 = {
+                    description: 'Increase damage output'
+                }
+            },
+            Tank: {
+                ability1: {
                     name: 'Sentry',
-                    cooldown: 0,
                     maxCooldown: 25 * 60,
                     duration: 5 * 60,
-                    remainingDuration: 0,
-                    active: false
-                };
-                this.abilities.ability2 = {
+                    description: 'Reduce speed but increase damage and energy regen'
+                },
+                ability2: {
                     name: 'Storm',
-                    cooldown: 0,
                     maxCooldown: 35 * 60,
                     duration: 1,
-                    remainingDuration: 0,
-                    active: false
-                };
-                break;
-            case 'Speedster':
-                this.abilities.ability1 = {
+                    description: 'Release a devastating circular barrage'
+                }
+            },
+            Speedster: {
+                ability1: {
                     name: 'Absolute Control',
-                    cooldown: 0,
                     maxCooldown: 20 * 60,
                     duration: 5 * 60,
-                    remainingDuration: 0,
-                    active: false
-                };
-                this.abilities.ability2 = {
+                    description: 'Greatly increase maneuverability'
+                },
+                ability2: {
                     name: 'Squadron',
-                    cooldown: 0,
                     maxCooldown: 35 * 60,
                     duration: 10 * 60,
-                    remainingDuration: 0,
-                    active: false,
-                    clones: []
-                };
-                break;
-            case 'Sniper':
-                this.abilities.ability1 = {
+                    description: 'Deploy two wingman clones'
+                }
+            },
+            Sniper: {
+                ability1: {
                     name: 'Warp Drive',
-                    cooldown: 0,
                     maxCooldown: 10 * 60,
                     duration: 3 * 60,
-                    remainingDuration: 0,
-                    active: false,
-                    targetX: 0,
-                    targetY: 0
-                };
-                this.abilities.ability2 = {
+                    description: 'Teleport to cursor location'
+                },
+                ability2: {
                     name: 'Deathray',
-                    cooldown: 0,
                     maxCooldown: 40 * 60,
                     duration: 5 * 60,
-                    remainingDuration: 0,
-                    active: false,
-                    shotsRemaining: 0
-                };
-                break;
+                    description: 'Fire a devastating beam of concentrated energy'
+                }
+            }
+        };
+
+        // Apply class-specific abilities
+        if (abilities[shipClass.name]) {
+            const classAbilities = abilities[shipClass.name];
+            
+            // Set ability 1
+            Object.assign(this.abilities.ability1, classAbilities.ability1, {
+                unlocked: isAbilityUnlocked(shipClass.name.toUpperCase(), classAbilities.ability1.name),
+                cooldown: 0,
+                remainingDuration: 0,
+                active: false
+            });
+            
+            // Set ability 2
+            Object.assign(this.abilities.ability2, classAbilities.ability2, {
+                unlocked: isAbilityUnlocked(shipClass.name.toUpperCase(), classAbilities.ability2.name),
+                cooldown: 0,
+                remainingDuration: 0,
+                active: false
+            });
         }
     }
 
@@ -432,10 +437,10 @@ class Player {
     }
 
     drawAbilityCooldowns() {
-        const size = 40; // Reduced from 50
-        const spacing = 45; // Reduced from 60
+        const size = 40;
+        const spacing = 45;
         const margin = 10;
-        const x = margin; // Align to left margin
+        const x = margin;
         
         // Calculate y position based on the gem bar and score position
         const barSpacing = 25;
@@ -443,98 +448,105 @@ class Player {
         const energyY = healthY + barSpacing;
         const gemY = energyY + barSpacing;
         const scoreY = gemY + barSpacing + 10;
-        const y = scoreY + 15; // Reduced spacing after score
+        const y = scoreY + 15;
         
-        // Draw ability 1
-        // Background
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x, y, size, size);
-        
-        // Cooldown overlay
-        if (this.abilities.ability1.cooldown > 0) {
-            const progress = this.abilities.ability1.cooldown / this.abilities.ability1.maxCooldown;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(x, y + size * (1 - progress), size, size * progress);
+        // Only draw unlocked abilities
+        let currentX = x;
+        let abilitiesDrawn = 0;
+
+        // Draw ability 1 if unlocked
+        if (this.abilities.ability1.unlocked) {
+            ctx.fillStyle = '#333';
+            ctx.fillRect(currentX, y, size, size);
+            
+            if (this.abilities.ability1.cooldown > 0) {
+                const progress = this.abilities.ability1.cooldown / this.abilities.ability1.maxCooldown;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(currentX, y + size * (1 - progress), size, size * progress);
+            }
+            
+            if (this.abilities.ability1.active && this.abilities.ability1.remainingDuration > 0) {
+                const progress = this.abilities.ability1.remainingDuration / this.abilities.ability1.duration;
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.fillRect(currentX, y + size * (1 - progress), size, size * progress);
+            }
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('1', currentX + size/2, y + 25);
+            
+            ctx.font = '12px Arial';
+            ctx.fillText(this.abilities.ability1.name, currentX + size/2, y + size + 15);
+            
+            abilitiesDrawn++;
+            currentX += size + spacing;
         }
-        
-        // Active effect duration
-        if (this.abilities.ability1.active && this.abilities.ability1.remainingDuration > 0) {
-            const progress = this.abilities.ability1.remainingDuration / this.abilities.ability1.duration;
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-            ctx.fillRect(x, y + size * (1 - progress), size, size * progress);
+
+        // Draw ability 2 if unlocked
+        if (this.abilities.ability2.unlocked) {
+            ctx.fillStyle = '#333';
+            ctx.fillRect(currentX, y, size, size);
+            
+            if (this.abilities.ability2.cooldown > 0) {
+                const progress = this.abilities.ability2.cooldown / this.abilities.ability2.maxCooldown;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(currentX, y + size * (1 - progress), size, size * progress);
+            }
+            
+            if (this.abilities.ability2.active && this.abilities.ability2.remainingDuration > 0) {
+                const progress = this.abilities.ability2.remainingDuration / this.abilities.ability2.duration;
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.fillRect(currentX, y + size * (1 - progress), size, size * progress);
+            }
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px Arial';
+            ctx.fillText('2', currentX + size/2, y + 25);
+            
+            ctx.font = '12px Arial';
+            ctx.fillText(this.abilities.ability2.name, currentX + size/2, y + size + 15);
         }
+
+        // Draw ability tooltips on hover
+        const mouseX = mouse.x;
+        const mouseY = mouse.y;
+
+        if (this.abilities.ability1.unlocked && mouseX >= x && mouseX <= x + size && mouseY >= y && mouseY <= y + size) {
+            this.drawAbilityTooltip(this.abilities.ability1, mouseX, mouseY);
+        }
+        else if (this.abilities.ability2.unlocked && mouseX >= x + size + spacing && mouseX <= x + 2 * size + spacing && mouseY >= y && mouseY <= y + size) {
+            this.drawAbilityTooltip(this.abilities.ability2, mouseX, mouseY);
+        }
+
+        // Draw right-click hint if no abilities are unlocked
+        if (abilitiesDrawn === 0) {
+            ctx.fillStyle = '#666';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('Right-click to unlock abilities', x, y + size/2);
+        }
+    }
+
+    drawAbilityTooltip(ability, x, y) {
+        const padding = 10;
+        const tooltipWidth = 200;
+        const tooltipHeight = 60;
         
-        // Key binding
+        // Draw tooltip background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(x, y - tooltipHeight, tooltipWidth, tooltipHeight);
+        
+        // Draw ability name
         ctx.fillStyle = '#fff';
-        ctx.font = '16px Arial'; // Reduced from 20px
-        ctx.textAlign = 'center';
-        ctx.fillText('1', x + size/2, y + 25); // Adjusted for smaller size
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(ability.name, x + padding, y - tooltipHeight + padding + 14);
         
-        // Ability name
-        ctx.font = '12px Arial'; // Reduced from 14px
-        ctx.fillText(this.abilities.ability1.name, x + size/2, y + size + 15); // Reduced spacing
-        
-        // Draw ability 2
-        const x2 = x + size + spacing;
-        
-        // Background
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x2, y, size, size);
-        
-        // Cooldown overlay
-        if (this.abilities.ability2.cooldown > 0) {
-            const progress = this.abilities.ability2.cooldown / this.abilities.ability2.maxCooldown;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(x2, y + size * (1 - progress), size, size * progress);
-        }
-        
-        // Active effect duration
-        if (this.abilities.ability2.active && this.abilities.ability2.remainingDuration > 0) {
-            const progress = this.abilities.ability2.remainingDuration / this.abilities.ability2.duration;
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-            ctx.fillRect(x2, y + size * (1 - progress), size, size * progress);
-        }
-        
-        // Key binding
-        ctx.fillStyle = '#fff';
-        ctx.font = '16px Arial'; // Reduced from 20px
-        ctx.fillText('2', x2 + size/2, y + 25); // Adjusted for smaller size
-        
-        // Ability name
-        ctx.font = '12px Arial'; // Reduced from 14px
-        ctx.fillText(this.abilities.ability2.name, x2 + size/2, y + size + 15); // Reduced spacing
-
-        // Draw squadron clones if active
-        if (this.abilities.ability2.name === 'Squadron' && this.abilities.ability2.clones.length > 0) {
-            this.abilities.ability2.clones.forEach(clone => {
-                const screenX = clone.x - camera.x;
-                const screenY = clone.y - camera.y;
-
-                // Only draw if on screen
-                if (screenX + this.width < 0 || screenX - this.width > canvas.width ||
-                    screenY + this.height < 0 || screenY - this.height > canvas.height) {
-                    return;
-                }
-
-                ctx.save();
-                ctx.translate(screenX, screenY);
-                ctx.rotate(clone.rotation);
-                
-                // Draw clone with speedster level 1 design
-                ctx.fillStyle = SHIP_CLASSES.SPEEDSTER.color + '88'; // Semi-transparent
-                ctx.beginPath();
-                ctx.moveTo(this.width / 2, 0);
-                ctx.lineTo(0, this.height / 4);
-                ctx.lineTo(-this.width / 2, this.height / 3);
-                ctx.lineTo(-this.width / 3, 0);
-                ctx.lineTo(-this.width / 2, -this.height / 3);
-                ctx.lineTo(0, -this.height / 4);
-                ctx.closePath();
-                ctx.fill();
-                
-                ctx.restore();
-            });
-        }
+        // Draw description
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#aaa';
+        ctx.fillText(ability.description, x + padding, y - tooltipHeight + padding + 32);
     }
 
     move() {
@@ -760,6 +772,11 @@ class Player {
     activateAbility(abilityNum) {
         const ability = abilityNum === 1 ? this.abilities.ability1 : this.abilities.ability2;
         
+        if (!ability.unlocked) {
+            showNotification(`${ability.name} is not unlocked!`, 'warning');
+            return;
+        }
+
         if (ability.cooldown > 0) {
             showNotification(`${ability.name} is on cooldown!`, 'warning');
             return;

@@ -5,6 +5,7 @@ function wipeSaveData() {
     localStorage.removeItem('spaceGameGamesPlayed');
     localStorage.removeItem('spaceGameUnlockedShips');
     localStorage.removeItem('spaceGameXP');
+    localStorage.removeItem('spaceGameUnlockedAbilities');
     showNotification('All save data wiped!', 'warning');
     player = null;
 }
@@ -157,12 +158,38 @@ function getXP() {
 
 function addXP(amount) {
     const currentXP = getXP();
-    localStorage.setItem('spaceGameXP', currentXP + amount);
+    localStorage.setItem('spaceGameXP', String(currentXP + amount));
 }
 
 function getUnlockedShips() {
     const unlockedShips = localStorage.getItem('spaceGameUnlockedShips');
     return unlockedShips ? JSON.parse(unlockedShips) : ['Fighter']; // Fighter is always unlocked
+}
+
+function getUnlockedAbilities() {
+    const unlockedAbilities = localStorage.getItem('spaceGameUnlockedAbilities');
+    return unlockedAbilities ? JSON.parse(unlockedAbilities) : {
+        FIGHTER: [],
+        TANK: [],
+        SPEEDSTER: [],
+        SNIPER: []
+    };
+}
+
+function unlockAbility(shipClass, abilityName) {
+    const unlockedAbilities = getUnlockedAbilities();
+    if (!unlockedAbilities[shipClass]) {
+        unlockedAbilities[shipClass] = [];
+    }
+    if (!unlockedAbilities[shipClass].includes(abilityName)) {
+        unlockedAbilities[shipClass].push(abilityName);
+        localStorage.setItem('spaceGameUnlockedAbilities', JSON.stringify(unlockedAbilities));
+    }
+}
+
+function isAbilityUnlocked(shipClass, abilityName) {
+    const unlockedAbilities = getUnlockedAbilities();
+    return unlockedAbilities[shipClass] && unlockedAbilities[shipClass].includes(abilityName);
 }
 
 function isShipUnlocked(shipName) {

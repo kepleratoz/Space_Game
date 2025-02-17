@@ -96,7 +96,6 @@ class ShooterEnemy extends Enemy {
         this.idleAngle = Math.random() * Math.PI * 2; // Random direction for idle movement
         this.idleTimer = 0;
         this.idleChangeInterval = 180; // Change idle direction every 3 seconds
-        this.lasers = []; // Initialize lasers array
     }
 
     drawShape(x, y) {
@@ -173,20 +172,24 @@ class ShooterEnemy extends Enemy {
             height: 4
         };
         
-        enemyProjectiles.push(projectile);
+        if (typeof enemyProjectiles !== 'undefined') {
+            enemyProjectiles.push(projectile);
+        }
         this.shootCooldown = this.maxShootCooldown;
     }
 
     draw() {
         super.draw();
         
-        // Draw lasers
-        ctx.fillStyle = '#ff0000';
-        this.lasers.forEach(laser => {
-            const screenX = laser.x - camera.x;
-            const screenY = laser.y - camera.y;
-            ctx.fillRect(screenX - laser.width/2, screenY - laser.height/2, laser.width, laser.height);
-        });
+        // Draw projectiles if they exist
+        if (typeof enemyProjectiles !== 'undefined') {
+            ctx.fillStyle = '#ff0000';
+            enemyProjectiles.forEach(projectile => {
+                const screenX = projectile.x - camera.x;
+                const screenY = projectile.y - camera.y;
+                ctx.fillRect(screenX - projectile.width/2, screenY - projectile.height/2, projectile.width, projectile.height);
+            });
+        }
     }
 }
 

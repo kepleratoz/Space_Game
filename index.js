@@ -53,6 +53,9 @@ function gameLoop() {
     if (gameState === GAME_STATES.CLASS_SELECT) {
         drawClassSelection();
         drawSettingsButton();
+        if (showingAbilityUnlockScreen && selectedShipForAbilities) {
+            drawAbilityUnlockScreen();
+        }
         setTimeout(() => requestAnimationFrame(gameLoop), 0);
         return;
     }
@@ -98,6 +101,37 @@ function gameLoop() {
 
         // Handle collisions
         handleCollisions();
+
+        // During wave spawning
+        if (enemies.length < 15 && Math.random() < 0.03 && window.enemiesRemainingInWave > 0) {
+            spawnEnemy();
+            window.enemiesRemainingInWave--;
+        }
+
+        // Update and handle enemy projectiles
+        if (enemyProjectiles) {
+            // Update projectile positions
+            enemyProjectiles.forEach(projectile => {
+                projectile.x += projectile.velocityX;
+                projectile.y += projectile.velocityY;
+            });
+
+            // Remove projectiles that are off screen
+            enemyProjectiles = enemyProjectiles.filter(projectile => 
+                projectile.x >= 0 && projectile.x <= WORLD_WIDTH &&
+                projectile.y >= 0 && projectile.y <= WORLD_HEIGHT
+            );
+
+            // Check for collisions with player
+            if (player) {
+                enemyProjectiles.forEach((projectile, index) => {
+                    if (distance(projectile.x, projectile.y, player.x, player.y) < (player.width + projectile.width) / 2) {
+                        player.takeDamage(projectile.damage);
+                        enemyProjectiles.splice(index, 1);
+                    }
+                });
+            }
+        }
     }
 
     // Always draw game objects

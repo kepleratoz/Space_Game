@@ -12,6 +12,29 @@ window.addEventListener('mousedown', (e) => {
             break;
         case 2: // Right click
             mouse.rightDown = true;
+            if (gameState === GAME_STATES.CLASS_SELECT) {
+                const classes = Object.entries(SHIP_CLASSES);
+                const spacing = canvas.width / (classes.length + 1);
+                
+                classes.forEach(([key, shipClass], index) => {
+                    const x = spacing * (index + 1);
+                    const y = canvas.height/2;
+                    const width = 100;
+                    const height = 100;
+                    
+                    if (e.clientX > x - width/2 && 
+                        e.clientX < x + width/2 && 
+                        e.clientY > y - height/2 && 
+                        e.clientY < y + height/2) {
+                        if (isShipUnlocked(shipClass.name)) {
+                            selectedShipClass = key;
+                            selectedShipForAbilities = key;
+                            showingAbilityUnlockScreen = true;
+                        }
+                    }
+                });
+            }
+            e.preventDefault(); // Prevent context menu
             break;
     }
 });
@@ -53,6 +76,13 @@ window.addEventListener('keydown', (e) => {
         
         isRemappingKey = false;
         currentRemappingAction = null;
+        return;
+    }
+
+    // Close ability unlock screen with escape
+    if (e.key === 'Escape' && showingAbilityUnlockScreen) {
+        showingAbilityUnlockScreen = false;
+        selectedShipForAbilities = null;
         return;
     }
 
@@ -163,6 +193,12 @@ canvas.addEventListener('click', (e) => {
         if (e.clientX >= wipeBtn.x && e.clientX <= wipeBtn.x + wipeBtn.width &&
             e.clientY >= wipeBtn.y && e.clientY <= wipeBtn.y + wipeBtn.height) {
             wipeSaveData();
+            return;
+        }
+
+        // Handle ability unlock screen clicks if it's showing
+        if (showingAbilityUnlockScreen) {
+            handleAbilityUnlockClick(e.clientX, e.clientY);
             return;
         }
 
@@ -393,6 +429,44 @@ canvas.addEventListener('click', (e) => {
             e.clientY >= backBtn.y && e.clientY <= backBtn.y + backBtn.height) {
             gameState = GAME_STATES.CLASS_SELECT;
             return;
+        }
+    }
+
+    // Remove ability unlock screen click handler for gameplay
+    if (gameState === GAME_STATES.PLAYING && player) {
+        return;
+    }
+});
+
+// Prevent default right-click menu
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
+
+// Handle right-click
+canvas.addEventListener('mousedown', (e) => {
+    if (e.button === 2) { // Right click
+        if (gameState === GAME_STATES.CLASS_SELECT) {
+            const classes = Object.entries(SHIP_CLASSES);
+            const spacing = canvas.width / (classes.length + 1);
+            
+            classes.forEach(([key, shipClass], index) => {
+                const x = spacing * (index + 1);
+                const y = canvas.height/2;
+                const width = 100;
+                const height = 100;
+                
+                if (e.clientX > x - width/2 && 
+                    e.clientX < x + width/2 && 
+                    e.clientY > y - height/2 && 
+                    e.clientY < y + height/2) {
+                    if (isShipUnlocked(shipClass.name)) {
+                        selectedShipClass = key;
+                        selectedShipForAbilities = key;
+                        showingAbilityUnlockScreen = true;
+                    }
+                }
+            });
         }
     }
 });

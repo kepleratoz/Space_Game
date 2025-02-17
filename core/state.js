@@ -16,6 +16,9 @@ const keys = {};
 // Game state management
 let gameState = GAME_STATES.CLASS_SELECT;
 let selectedClass = null;
+let selectedShipClass = null;
+let selectedShipForAbilities = null;
+let showingAbilityUnlockScreen = false;
 let isPaused = false;
 let isDebugMode = false;
 let isInvincible = false;
@@ -83,11 +86,15 @@ let enemies = [];
 let asteroids = [];
 let healthPacks = [];
 let gems = [];
+let enemyProjectiles = [];
 
 // Game state functions
 function resetGameState() {
     gameState = GAME_STATES.CLASS_SELECT;
     selectedClass = null;
+    selectedShipClass = null;
+    selectedShipForAbilities = null;
+    showingAbilityUnlockScreen = false;
     isPaused = false;
     isDebugMode = false;
     isInvincible = false;
@@ -100,6 +107,7 @@ function resetGameState() {
     asteroids = [];
     healthPacks = [];
     gems = [];
+    enemyProjectiles = [];
 }
 
 function initializeWaveSystem() {

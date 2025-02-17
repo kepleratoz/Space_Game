@@ -1,4 +1,3 @@
-
 const FRICTION = 0.98;
 const BOUNCE = 0.7;
 function handleCollisions() {
@@ -163,15 +162,14 @@ function handleCollisions() {
         return true;
     });
 
-    // Check enemy laser hits on player
-    enemies.forEach(enemy => {
-        if (enemy instanceof ShooterEnemy) {
-            enemy.lasers.forEach((laser, laserIndex) => {
-                if (distance(laser.x, laser.y, player.x, player.y) < playerRadius) {
-                    player.takeDamage(5);
-                    enemy.lasers.splice(laserIndex, 1);
-                }
-            });
-        }
-    });
+    // Check enemy projectile hits on player
+    if (enemyProjectiles && player) {
+        enemyProjectiles = enemyProjectiles.filter(projectile => {
+            if (distance(projectile.x, projectile.y, player.x, player.y) < playerRadius + projectile.width/2) {
+                player.takeDamage(projectile.damage);
+                return false;
+            }
+            return true;
+        });
+    }
 }
