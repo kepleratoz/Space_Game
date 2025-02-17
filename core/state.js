@@ -1,6 +1,13 @@
 // Game state is now managed in index.js
 // This file can be used for state-related utilities and functions
 
+// Mouse state
+const mouse = {
+    x: 0,
+    y: 0,
+    isDown: false
+};
+
 // Game state management
 let gameState = GAME_STATES.CLASS_SELECT;
 let selectedClass = null;
@@ -9,6 +16,24 @@ let isDebugMode = false;
 let isInvincible = false;
 let gameOver = false;
 let score = 0;
+
+// Settings management
+let settings = {
+    maxFPS: 60
+};
+
+// Load settings from localStorage
+function loadSettings() {
+    const savedSettings = localStorage.getItem('spaceGameSettings');
+    if (savedSettings) {
+        settings = { ...settings, ...JSON.parse(savedSettings) };
+    }
+}
+
+// Save settings to localStorage
+function saveSettings() {
+    localStorage.setItem('spaceGameSettings', JSON.stringify(settings));
+}
 
 // Game objects
 let player = null;
@@ -41,3 +66,6 @@ function initializeWaveSystem() {
     window.waveStartTime = Date.now();
     window.waveTimer = 0;
 }
+
+// Initialize settings on load
+loadSettings();

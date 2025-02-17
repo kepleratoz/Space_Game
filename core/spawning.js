@@ -68,14 +68,19 @@ function spawnObjects() {
     // Display current wave and time remaining
     ctx.fillStyle = '#fff';
     ctx.font = '20px Arial';
-    ctx.fillText(`Wave ${window.waveNumber}`, 10, canvas.height - 60);
-    ctx.fillText(`Level ${player.upgradeLevel}`, 10, canvas.height - 30);
+    ctx.textAlign = 'left';
+    const margin = 10;
+    const bottomMargin = 30;
+    
+    // Draw wave and level info at bottom left
+    ctx.fillText(`Wave ${window.waveNumber}`, margin, canvas.height - bottomMargin);
+    ctx.fillText(`Level ${player.upgradeLevel}`, margin, canvas.height - bottomMargin * 2);
     
     const timeRemaining = Math.max(0, Math.ceil((waveTimeout - timeElapsed) / 1000));
     if (timeRemaining < 30) {
         ctx.fillStyle = '#ff0000';
     }
-    ctx.fillText(`Time Remaining: ${Math.floor(timeRemaining/60)}:${(timeRemaining%60).toString().padStart(2, '0')}`, 10, canvas.height - 90);
+    ctx.fillText(`Time: ${Math.floor(timeRemaining/60)}:${(timeRemaining%60).toString().padStart(2, '0')}`, margin, canvas.height - bottomMargin * 3);
 }
 function spawnEnemy() {
     // Spawn enemies away from the player

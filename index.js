@@ -1,4 +1,23 @@
 // Main game functions
+let lastFrameTime = performance.now();
+let fps = 0;
+let frameCount = 0;
+let lastFpsUpdate = performance.now();
+let currentFps = 0;
+
+function updateFPS() {
+    frameCount++;
+    const now = performance.now();
+    const elapsed = now - lastFpsUpdate;
+    
+    if (elapsed >= 1000) {
+        currentFps = Math.round((frameCount * 1000) / elapsed);
+        frameCount = 0;
+        lastFpsUpdate = now;
+    }
+    return currentFps;
+}
+
 function initializeGame() {
     // Initialize save system
     initializeSaveSystem();
@@ -11,19 +30,42 @@ function initializeGame() {
 }
 
 function gameLoop() {
+    // Calculate time since last frame
+    const currentTime = performance.now();
+    const deltaTime = currentTime - lastFrameTime;
+    
+    // Respect max framerate setting
+    const frameTime = 1000 / settings.maxFPS;
+    if (deltaTime < frameTime) {
+        // Use setTimeout for more precise timing at high framerates
+        setTimeout(() => requestAnimationFrame(gameLoop), 0);
+        return;
+    }
+    
+    // Update FPS counter
+    fps = updateFPS();
+    lastFrameTime = currentTime;
+
     // Clear canvas
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     if (gameState === GAME_STATES.CLASS_SELECT) {
         drawClassSelection();
-        requestAnimationFrame(gameLoop);
+        drawSettingsButton();
+        setTimeout(() => requestAnimationFrame(gameLoop), 0);
+        return;
+    }
+    
+    if (gameState === GAME_STATES.SETTINGS) {
+        drawSettingsMenu();
+        setTimeout(() => requestAnimationFrame(gameLoop), 0);
         return;
     }
     
     if (gameState === GAME_STATES.GAME_OVER || gameOver) {
         drawGameOver();
-        requestAnimationFrame(gameLoop);
+        setTimeout(() => requestAnimationFrame(gameLoop), 0);
         return;
     }
 
@@ -69,12 +111,19 @@ function gameLoop() {
     drawDebugInfo();
     drawPauseButton();
 
+    // Draw FPS counter
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText(`FPS: ${fps}`, canvas.width - 10, canvas.height - 10);
+
     // Draw pause screen if paused
     if (gameState === GAME_STATES.PAUSED) {
         drawPauseScreen();
     }
 
-    requestAnimationFrame(gameLoop);
+    // Use setTimeout for more precise timing at high framerates
+    setTimeout(() => requestAnimationFrame(gameLoop), 0);
 }
 
 // Start the game

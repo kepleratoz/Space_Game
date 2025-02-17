@@ -8,8 +8,9 @@ class Gem {
         this.velocityX = (Math.random() - 0.5) * 4;
         this.velocityY = (Math.random() - 0.5) * 4;
         this.friction = 0.98;
-        this.attractionRadius = 150; // Radius within which gems are attracted to player
-        this.maxAttractionSpeed = 8; // Maximum speed when being attracted
+        this.attractionRadius = 250; // Increased from 150
+        this.maxAttractionSpeed = 12; // Increased from 8
+        this.attractionStrengthBase = 1.0; // Increased from 0.5
     }
 
     draw() {
@@ -40,8 +41,8 @@ class Gem {
                 // Calculate direction to player
                 const angle = Math.atan2(player.y - this.y, player.x - this.x);
                 
-                // Attraction force increases as gem gets closer to player
-                const attractionStrength = 0.5 * (1 - distToPlayer / this.attractionRadius);
+                // Stronger attraction force that increases more quickly as gem gets closer
+                const attractionStrength = this.attractionStrengthBase * Math.pow(1 - distToPlayer / this.attractionRadius, 2);
                 
                 // Apply attraction force
                 this.velocityX += Math.cos(angle) * attractionStrength;

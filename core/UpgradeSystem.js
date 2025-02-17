@@ -68,21 +68,24 @@ function drawClassSelection() {
         const width = 100;
         const height = 100;
         
-        const isLocked = currentXP < shipClass.xpRequired;
+        const isUnlocked = isShipUnlocked(shipClass.name);
+        const canUnlock = currentXP >= shipClass.xpRequired;
+        const isLocked = !isUnlocked && shipClass.xpRequired > 0;
         
         // Draw selection box
-        ctx.strokeStyle = isLocked ? '#444' : 
-                         (mouse.x > x - width/2 && 
-                         mouse.x < x + width/2 && 
-                         mouse.y > y - height/2 && 
-                         mouse.y < y + height/2)
-                         ? shipClass.color 
-                         : '#666';
+        ctx.strokeStyle = isLocked ? 
+            (canUnlock ? '#ffd700' : '#444') : // Gold if can unlock, gray if can't
+            (mouse.x > x - width/2 && 
+            mouse.x < x + width/2 && 
+            mouse.y > y - height/2 && 
+            mouse.y < y + height/2)
+            ? shipClass.color 
+            : '#666';
         ctx.lineWidth = 3;
         ctx.strokeRect(x - width/2, y - height/2, width, height);
         
         // Draw ship preview
-        ctx.fillStyle = isLocked ? '#444' : shipClass.color;
+        ctx.fillStyle = isLocked ? (canUnlock ? '#666' : '#444') : shipClass.color;
         ctx.beginPath();
         ctx.moveTo(x + width/4, y);
         ctx.lineTo(x - width/4, y + height/4);
@@ -91,13 +94,17 @@ function drawClassSelection() {
         ctx.fill();
         
         // Draw ship name and stats
-        ctx.fillStyle = isLocked ? '#666' : '#fff';
+        ctx.fillStyle = isLocked ? (canUnlock ? '#ffd700' : '#666') : '#fff';
         ctx.font = '24px Arial';
         ctx.fillText(shipClass.name, x, y + height);
         ctx.font = '16px Arial';
         
         if (isLocked) {
-            ctx.fillText(`Requires ${shipClass.xpRequired} XP`, x, y + height + 25);
+            if (canUnlock) {
+                ctx.fillText(`Click to unlock (${shipClass.xpRequired} XP)`, x, y + height + 25);
+            } else {
+                ctx.fillText(`Requires ${shipClass.xpRequired} XP`, x, y + height + 25);
+            }
         } else {
             ctx.fillText(`Health: ${shipClass.health}`, x, y + height + 25);
             ctx.fillText(`Speed: ${shipClass.maxSpeed}`, x, y + height + 45);

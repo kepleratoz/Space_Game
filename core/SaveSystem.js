@@ -3,6 +3,8 @@ function wipeSaveData() {
     localStorage.removeItem('spaceGameSaveMetadata');
     localStorage.removeItem('spaceGameWavesCleared');
     localStorage.removeItem('spaceGameGamesPlayed');
+    localStorage.removeItem('spaceGameUnlockedShips');
+    localStorage.removeItem('spaceGameXP');
     showNotification('All save data wiped!', 'warning');
     player = null;
 }
@@ -156,4 +158,22 @@ function getXP() {
 function addXP(amount) {
     const currentXP = getXP();
     localStorage.setItem('spaceGameXP', currentXP + amount);
+}
+
+function getUnlockedShips() {
+    const unlockedShips = localStorage.getItem('spaceGameUnlockedShips');
+    return unlockedShips ? JSON.parse(unlockedShips) : ['Fighter']; // Fighter is always unlocked
+}
+
+function isShipUnlocked(shipName) {
+    const unlockedShips = getUnlockedShips();
+    return unlockedShips.includes(shipName);
+}
+
+function unlockShip(shipName) {
+    const unlockedShips = getUnlockedShips();
+    if (!unlockedShips.includes(shipName)) {
+        unlockedShips.push(shipName);
+        localStorage.setItem('spaceGameUnlockedShips', JSON.stringify(unlockedShips));
+    }
 }
