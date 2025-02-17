@@ -107,7 +107,7 @@ function gameLoop() {
 
     // Draw UI elements
     drawMinimap();
-    drawStatusBars();
+    player.drawStatusBars();
     drawDebugInfo();
     drawPauseButton();
 

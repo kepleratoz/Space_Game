@@ -3,18 +3,135 @@ window.addEventListener('mousemove', (e) => {
     mouse.y = e.clientY;
 });
 window.addEventListener('mousedown', (e) => {
-    if (e.button === 0) { // Left click
-        mouse.isDown = true;
+    switch(e.button) {
+        case 0: // Left click
+            mouse.isDown = true;
+            break;
+        case 1: // Middle click
+            mouse.middleDown = true;
+            break;
+        case 2: // Right click
+            mouse.rightDown = true;
+            break;
     }
 });
 window.addEventListener('mouseup', (e) => {
-    if (e.button === 0) { // Left click
-        mouse.isDown = false;
+    switch(e.button) {
+        case 0: // Left click
+            mouse.isDown = false;
+            break;
+        case 1: // Middle click
+            mouse.middleDown = false;
+            break;
+        case 2: // Right click
+            mouse.rightDown = false;
+            break;
     }
 });
-const keys = {};
+
+// Prevent context menu on right click
+window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
+
 window.addEventListener('keydown', e => keys[e.key] = true);
 window.addEventListener('keyup', e => keys[e.key] = false);
+
+// Handle key events for remapping and general key controls
+window.addEventListener('keydown', (e) => {
+    // Handle key remapping
+    if (isRemappingKey) {
+        if (e.key === 'Escape') {
+            isRemappingKey = false;
+            currentRemappingAction = null;
+            return;
+        }
+        
+        // Update the keybind
+        settings.keybinds[currentRemappingAction] = e.key;
+        saveSettings();
+        
+        isRemappingKey = false;
+        currentRemappingAction = null;
+        return;
+    }
+
+    // Normal key handling
+    keys[e.key] = true;
+    
+    // Handle ability activation
+    if (gameState === GAME_STATES.PLAYING && player) {
+        if (e.key === '1') {
+            player.activateAbility(1);
+        } else if (e.key === '2') {
+            player.activateAbility(2);
+        }
+    }
+    
+    // Check if it matches any of our keybinds
+    for (const [action, key] of Object.entries(settings.keybinds)) {
+        if (e.key.toLowerCase() === key.toLowerCase()) {
+            // Handle the action
+            switch(action) {
+                case 'pause':
+                    if (gameState !== GAME_STATES.CLASS_SELECT && gameState !== GAME_STATES.GAME_OVER) {
+                        gameState = gameState === GAME_STATES.PLAYING ? GAME_STATES.PAUSED : GAME_STATES.PLAYING;
+                        isPaused = gameState === GAME_STATES.PAUSED;
+                    }
+                    break;
+                case 'debug':
+                    isDebugMode = !isDebugMode;
+                    showNotification(isDebugMode ? 'Debug Mode Enabled' : 'Debug Mode Disabled');
+                    break;
+            }
+        }
+    }
+
+    // Debug controls
+    if (isDebugMode && player) {
+        switch(e.key) {
+            case 'k':
+            case 'K':
+                player.gems += 100;
+                showNotification('+100 Gems');
+                break;
+            case 'l':
+            case 'L':
+                player.health = player.maxHealth;
+                player.energy = player.maxEnergy;
+                showNotification('Health and Energy Restored');
+                break;
+            case ';':
+                isInvincible = !isInvincible;
+                showNotification(isInvincible ? 'Invincibility Enabled' : 'Invincibility Disabled');
+                break;
+            case 'm':
+            case 'M':
+                score += 1000;
+                showNotification('+1000 Score');
+                break;
+            case 'n':
+            case 'N':
+                // Clear all enemies and advance to next wave
+                enemies = [];
+                window.enemiesRemainingInWave = 0;
+                window.waveTimer = 1; // Set to 1 to trigger immediate wave change
+                showNotification('Advancing to Next Wave');
+                break;
+            case 'c':
+            case 'C':
+                // Clear all enemies but stay in current wave
+                enemies = [];
+                showNotification('Cleared All Enemies');
+                break;
+        }
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    keys[e.key] = false;
+});
+
 canvas.addEventListener('click', (e) => {
     // Check pause button click
     const buttonSize = 30;
@@ -276,58 +393,6 @@ canvas.addEventListener('click', (e) => {
             e.clientY >= backBtn.y && e.clientY <= backBtn.y + backBtn.height) {
             gameState = GAME_STATES.CLASS_SELECT;
             return;
-        }
-    }
-});
-
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'p' || e.key === 'P') {
-        if (gameState !== GAME_STATES.CLASS_SELECT && gameState !== GAME_STATES.GAME_OVER) {
-            if (gameState === GAME_STATES.PLAYING) {
-                gameState = GAME_STATES.PAUSED;
-                isPaused = true;
-            } else if (gameState === GAME_STATES.PAUSED) {
-                gameState = GAME_STATES.PLAYING;
-                isPaused = false;
-            }
-        }
-    }
-
-    // Debug controls
-    if (e.key === 'o' || e.key === 'O') {
-        isDebugMode = !isDebugMode;
-    }
-
-    if (isDebugMode && player) {
-        switch(e.key) {
-            case 'k':
-            case 'K':
-                player.gems += 100;
-                break;
-            case 'l':
-            case 'L':
-                player.health = player.maxHealth;
-                player.energy = player.maxEnergy;
-                break;
-            case ';':
-                isInvincible = !isInvincible;
-                break;
-            case 'm':
-            case 'M':
-                score += 1000;
-                break;
-            case 'n':
-            case 'N':
-                // Clear all enemies and advance to next wave
-                enemies = [];
-                window.enemiesRemainingInWave = 0;
-                window.waveTimer = 1; // Set to 1 to trigger immediate wave change
-                break;
-            case 'c':
-            case 'C':
-                // Clear all enemies but stay in current wave
-                enemies = [];
-                break;
         }
     }
 });

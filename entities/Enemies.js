@@ -84,11 +84,19 @@ class ChaserEnemy extends Enemy {
 class ShooterEnemy extends Enemy {
     constructor(x, y) {
         super(x, y);
-        this.color = '#ff6666';
-        this.shootCooldown = 0;
-        this.maxShootCooldown = 90; // 1.5 seconds
-        this.lasers = [];
+        this.width = 30;
+        this.height = 30;
         this.health = 40;
+        this.maxSpeed = 2;
+        this.shootCooldown = 0;
+        this.maxShootCooldown = 60;
+        this.aggroRange = 500; // Range at which enemy will start chasing player
+        this.shootRange = 400; // Range at which enemy will start shooting
+        this.idleSpeed = 0.5; // Slow speed for idle movement
+        this.idleAngle = Math.random() * Math.PI * 2; // Random direction for idle movement
+        this.idleTimer = 0;
+        this.idleChangeInterval = 180; // Change idle direction every 3 seconds
+        this.lasers = []; // Initialize lasers array
     }
 
     drawShape(x, y) {
@@ -98,62 +106,75 @@ class ShooterEnemy extends Enemy {
         ctx.fillRect(x, y - this.width/6, this.height/2, this.width/3);
     }
 
-    behavior() {
-        // Rotate to face player
-        this.rotation = Math.atan2(player.y - this.y, player.x - this.x);
-        
-        // Move slowly and keep distance
+    update() {
         const distToPlayer = distance(this.x, this.y, player.x, player.y);
-        const idealDistance = 300;
-        const moveSpeed = 1;
-        
-        if (distToPlayer < idealDistance - 50) {
-            // Move away
-            this.velocityX = -Math.cos(this.rotation) * moveSpeed;
-            this.velocityY = -Math.sin(this.rotation) * moveSpeed;
-        } else if (distToPlayer > idealDistance + 50) {
-            // Move closer
-            this.velocityX = Math.cos(this.rotation) * moveSpeed;
-            this.velocityY = Math.sin(this.rotation) * moveSpeed;
+        const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+
+        if (distToPlayer < this.aggroRange) {
+            // In aggro range - chase player and try to maintain shoot range
+            const targetDist = this.shootRange;
+            const moveSpeed = this.maxSpeed;
+
+            if (distToPlayer < targetDist - 50) {
+                // Too close, back away
+                this.x -= Math.cos(angleToPlayer) * moveSpeed;
+                this.y -= Math.sin(angleToPlayer) * moveSpeed;
+            } else if (distToPlayer > targetDist + 50) {
+                // Too far, move closer
+                this.x += Math.cos(angleToPlayer) * moveSpeed;
+                this.y += Math.sin(angleToPlayer) * moveSpeed;
+            }
+
+            // Update rotation to face player
+            this.rotation = angleToPlayer;
+
+            // Shoot if in range
+            if (this.shootCooldown <= 0 && distToPlayer < this.shootRange) {
+                this.shoot();
+            }
         } else {
-            this.velocityX *= 0.95;
-            this.velocityY *= 0.95;
+            // Outside aggro range - idle movement
+            this.idleTimer++;
+            if (this.idleTimer >= this.idleChangeInterval) {
+                this.idleTimer = 0;
+                this.idleAngle = Math.random() * Math.PI * 2;
+            }
+
+            // Move in idle direction
+            this.x += Math.cos(this.idleAngle) * this.idleSpeed;
+            this.y += Math.sin(this.idleAngle) * this.idleSpeed;
+            
+            // Smoothly rotate towards movement direction
+            const rotationDiff = this.idleAngle - this.rotation;
+            this.rotation += rotationDiff * 0.1;
         }
 
-        this.x += this.velocityX;
-        this.y += this.velocityY;
-
-        // Shooting
-        if (this.shootCooldown <= 0) {
-            this.shoot();
-            this.shootCooldown = this.maxShootCooldown;
-        } else {
+        // Update shoot cooldown
+        if (this.shootCooldown > 0) {
             this.shootCooldown--;
         }
 
-        // Update lasers
-        for (let i = this.lasers.length - 1; i >= 0; i--) {
-            const laser = this.lasers[i];
-            laser.x += laser.velocityX;
-            laser.y += laser.velocityY;
+        // Keep within world bounds
+        this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
+        this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
 
-            if (laser.x < 0 || laser.x > WORLD_WIDTH || 
-                laser.y < 0 || laser.y > WORLD_HEIGHT) {
-                this.lasers.splice(i, 1);
-            }
-        }
+        return this.health <= 0;
     }
 
     shoot() {
-        const laser = {
-            x: this.x + Math.cos(this.rotation) * this.width,
-            y: this.y + Math.sin(this.rotation) * this.width,
-            velocityX: Math.cos(this.rotation) * 8,
-            velocityY: Math.sin(this.rotation) * 8,
+        // Create a new projectile
+        const projectile = {
+            x: this.x,
+            y: this.y,
+            velocityX: Math.cos(this.rotation) * 5,
+            velocityY: Math.sin(this.rotation) * 5,
+            damage: 10,
             width: 4,
             height: 4
         };
-        this.lasers.push(laser);
+        
+        enemyProjectiles.push(projectile);
+        this.shootCooldown = this.maxShootCooldown;
     }
 
     draw() {
