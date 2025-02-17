@@ -1,9 +1,3 @@
-const UPGRADE_LEVELS = {
-    LEVEL1: { gems: 100, name: 'Level 1' },
-    LEVEL2: { gems: 220, name: 'Level 2' },
-    LEVEL3: { gems: 360, name: 'Level 3' },
-    LEVEL4: { gems: 560, name: 'Level 4' }
-};
 function drawClassSelection() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);

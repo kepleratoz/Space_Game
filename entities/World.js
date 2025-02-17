@@ -1,6 +1,4 @@
-const WORLD_WIDTH = Math.max(3000, window.innerWidth * 2);
-const WORLD_HEIGHT = Math.max(3000, window.innerHeight * 2);
-
+// Remove duplicate declarations and start with Asteroid class
 class Asteroid {
     constructor() {
         this.width = 50;

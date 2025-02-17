@@ -1,20 +1,28 @@
+// Main game functions
+function initializeGame() {
+    // Initialize save system
+    initializeSaveSystem();
+    
+    // Reset game state
+    resetGameState();
+    
+    // Initialize wave system
+    initializeWaveSystem();
+}
+
 function gameLoop() {
     // Clear canvas
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (gameState === 'CLASS_SELECT') {
+    if (gameState === GAME_STATES.CLASS_SELECT) {
         drawClassSelection();
         requestAnimationFrame(gameLoop);
         return;
     }
     
-    if (gameState === 'GAME_OVER' || gameOver) {
-        ctx.fillStyle = '#fff';
-        ctx.font = `${Math.min(48, canvas.width * 0.1)}px Arial`;
-        ctx.fillText('Game Over!', canvas.width/2 - 100, canvas.height/2);
-        ctx.font = `${Math.min(24, canvas.width * 0.05)}px Arial`;
-        ctx.fillText(`Score: ${score}`, canvas.width/2 - 50, canvas.height/2 + 40);
+    if (gameState === GAME_STATES.GAME_OVER || gameOver) {
+        drawGameOver();
         requestAnimationFrame(gameLoop);
         return;
     }
@@ -22,8 +30,11 @@ function gameLoop() {
     // Draw background
     drawBackground();
 
+    // Update camera
+    camera.update();
+
     // Update and draw game objects only if not paused
-    if (gameState === 'PLAYING') {
+    if (gameState === GAME_STATES.PLAYING) {
         // Update player invincibility from debug mode
         if (isDebugMode && isInvincible) {
             player.invulnerable = true;
@@ -59,12 +70,13 @@ function gameLoop() {
     drawPauseButton();
 
     // Draw pause screen if paused
-    if (gameState === 'PAUSED') {
+    if (gameState === GAME_STATES.PAUSED) {
         drawPauseScreen();
     }
 
     requestAnimationFrame(gameLoop);
 }
 
+// Start the game
 initializeGame();
 gameLoop();

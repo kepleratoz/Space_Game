@@ -121,14 +121,14 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-function initializeGame() {
+function initializeSaveSystem() {
     // Try to load the save from slot 1
     if (loadGame(1)) {
-        gameState = 'CLASS_SELECT';
+        gameState = GAME_STATES.CLASS_SELECT;
         showNotification('Game loaded!', 'success');
     } else {
         // No save found, start fresh
-        gameState = 'CLASS_SELECT';
+        gameState = GAME_STATES.CLASS_SELECT;
         player = null;
     }
 }
