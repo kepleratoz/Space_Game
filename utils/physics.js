@@ -28,7 +28,7 @@ function handleCollisions() {
                 
                 // Damage based on impact speed
                 const damage = Math.min(30, Math.max(10, impactSpeed * 5));
-                enemy.takeDamage(damage);
+                enemy.takeDamage(damage, true);
             }
         });
     });
@@ -39,52 +39,117 @@ function handleCollisions() {
         const prevX = laser.x - laser.velocityX;
         const prevY = laser.y - laser.velocityY;
         
-        // Check enemies with ray-casting
+        // Ray tracing parameters
+        const rayOriginX = prevX;
+        const rayOriginY = prevY;
+        const rayDirX = laser.velocityX;
+        const rayDirY = laser.velocityY;
+        const rayLength = Math.sqrt(rayDirX * rayDirX + rayDirY * rayDirY);
+        const normalizedRayDirX = rayDirX / rayLength;
+        const normalizedRayDirY = rayDirY / rayLength;
+        
+        // Check enemies with ray tracing
         let hitSomething = false;
+        let closestHit = Infinity;
+        let hitEnemy = null;
+        let hitEnemyIndex = -1;
+
         enemies.forEach((enemy, enemyIndex) => {
-            // Check if line segment intersects with enemy circle
-            const hit = lineCircleIntersect(
-                prevX, prevY,
-                laser.x, laser.y,
-                enemy.x, enemy.y,
-                enemy.width/2
-            );
+            // Vector from ray origin to circle center
+            const toCircleX = enemy.x - rayOriginX;
+            const toCircleY = enemy.y - rayOriginY;
             
-            if (hit) {
-                hitSomething = true;
-                enemy.takeDamage(laser.damage);
-                if (enemy.health <= 0) {
-                    // Drop gems when enemy is destroyed
-                    const gemCount = Math.floor(Math.random() * 3) + 1;
-                    for (let i = 0; i < gemCount; i++) {
-                        gems.push(new Gem(enemy.x, enemy.y, 10));
-                    }
-                    enemies.splice(enemyIndex, 1);
-                    score += 100;
+            // Project vector onto ray direction to find closest point
+            const dot = toCircleX * normalizedRayDirX + toCircleY * normalizedRayDirY;
+            
+            // If behind ray origin, no hit possible
+            if (dot < 0) return;
+            
+            // Find closest point on ray to circle center
+            const closestX = rayOriginX + normalizedRayDirX * dot;
+            const closestY = rayOriginY + normalizedRayDirY * dot;
+            
+            // Distance from closest point to circle center
+            const distX = closestX - enemy.x;
+            const distY = closestY - enemy.y;
+            const distSquared = distX * distX + distY * distY;
+            
+            // Check if ray hits circle
+            if (distSquared <= (enemy.width/2) * (enemy.width/2)) {
+                // Calculate actual intersection point
+                const distToIntersection = dot - Math.sqrt((enemy.width/2) * (enemy.width/2) - distSquared);
+                
+                // Check if this is the closest hit so far
+                if (distToIntersection < closestHit && distToIntersection <= rayLength) {
+                    closestHit = distToIntersection;
+                    hitEnemy = enemy;
+                    hitEnemyIndex = enemyIndex;
                 }
             }
         });
 
-        // Check asteroids with ray-casting
-        asteroids.forEach((asteroid, asteroidIndex) => {
-            const hit = lineCircleIntersect(
-                prevX, prevY,
-                laser.x, laser.y,
-                asteroid.x, asteroid.y,
-                asteroid.width/2
-            );
+        // Handle the closest hit
+        if (hitEnemy) {
+            hitSomething = true;
+            hitEnemy.takeDamage(laser.damage);
+            if (hitEnemy.health <= 0) {
+                // Drop gems when enemy is destroyed
+                const gemCount = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < gemCount; i++) {
+                    gems.push(new Gem(hitEnemy.x, hitEnemy.y, 10));
+                }
+                enemies.splice(hitEnemyIndex, 1);
+                score += 100;
+            }
             
-            if (hit) {
-                hitSomething = true;
-                asteroid.health -= laser.damage;
-                if (asteroid.health <= 0) {
-                    // Drop gems when asteroid is destroyed
-                    const gemCount = Math.floor(Math.random() * 2) + 1;
-                    for (let i = 0; i < gemCount; i++) {
-                        gems.push(new Gem(asteroid.x, asteroid.y, 5));
+            // Set laser position to hit point for visual feedback
+            laser.x = rayOriginX + normalizedRayDirX * closestHit;
+            laser.y = rayOriginY + normalizedRayDirY * closestHit;
+        }
+
+        // Check asteroids with ray tracing
+        asteroids.forEach((asteroid, asteroidIndex) => {
+            // Vector from ray origin to circle center
+            const toCircleX = asteroid.x - rayOriginX;
+            const toCircleY = asteroid.y - rayOriginY;
+            
+            // Project vector onto ray direction to find closest point
+            const dot = toCircleX * normalizedRayDirX + toCircleY * normalizedRayDirY;
+            
+            // If behind ray origin, no hit possible
+            if (dot < 0) return;
+            
+            // Find closest point on ray to circle center
+            const closestX = rayOriginX + normalizedRayDirX * dot;
+            const closestY = rayOriginY + normalizedRayDirY * dot;
+            
+            // Distance from closest point to circle center
+            const distX = closestX - asteroid.x;
+            const distY = closestY - asteroid.y;
+            const distSquared = distX * distX + distY * distY;
+            
+            // Check if ray hits circle
+            if (distSquared <= (asteroid.width/2) * (asteroid.width/2)) {
+                // Calculate actual intersection point
+                const distToIntersection = dot - Math.sqrt((asteroid.width/2) * (asteroid.width/2) - distSquared);
+                
+                // Check if this is a valid hit
+                if (distToIntersection <= rayLength) {
+                    hitSomething = true;
+                    asteroid.health -= laser.damage;
+                    if (asteroid.health <= 0) {
+                        // Drop gems when asteroid is destroyed
+                        const gemCount = Math.floor(Math.random() * 2) + 1;
+                        for (let i = 0; i < gemCount; i++) {
+                            gems.push(new Gem(asteroid.x, asteroid.y, 5));
+                        }
+                        asteroids.splice(asteroidIndex, 1);
+                        score += 50;
                     }
-                    asteroids.splice(asteroidIndex, 1);
-                    score += 50;
+                    
+                    // Set laser position to hit point for visual feedback
+                    laser.x = rayOriginX + normalizedRayDirX * distToIntersection;
+                    laser.y = rayOriginY + normalizedRayDirY * distToIntersection;
                 }
             }
         });
@@ -130,15 +195,47 @@ function handleCollisions() {
                 // Reduce player velocity slightly
                 player.velocityX *= 0.9;
                 player.velocityY *= 0.9;
+
+                // Deal damage to player
+                const impactDamage = Math.min(30, Math.max(10, relativeSpeed * 3));
+                player.takeDamage(impactDamage);
             } else {
                 // For enemies, keep existing behavior
                 object.x -= Math.cos(angle) * overlap;
                 object.y -= Math.sin(angle) * overlap;
-                object.velocityX = (player.velocityX * 0.5) + (Math.cos(angle) * 5);
-                object.velocityY = (player.velocityY * 0.5) + (Math.sin(angle) * 5);
+                
+                // Calculate push force based on player's velocity and whether they're dashing
+                const pushForce = player.isDashing ? 2.5 : 1;
+                const velocityMagnitude = Math.sqrt(player.velocityX * player.velocityX + player.velocityY * player.velocityY);
+                const normalizedVelocity = {
+                    x: player.velocityX / velocityMagnitude,
+                    y: player.velocityY / velocityMagnitude
+                };
+                
+                // Apply push force to enemy
+                object.velocityX = normalizedVelocity.x * velocityMagnitude * pushForce;
+                object.velocityY = normalizedVelocity.y * velocityMagnitude * pushForce;
+
+                // Deal damage to both player and enemy
+                const baseDamage = 10;
+                player.takeDamage(baseDamage);
+
+                // If player is Rammer, apply contact damage to enemy
+                if (player.shipClass.name === 'Rammer') {
+                    const contactDamage = player.calculateContactDamage();
+                    object.takeDamage(contactDamage, true);
+                    
+                    // Check if enemy was destroyed and drop gems
+                    if (object.health <= 0) {
+                        // Drop gems when enemy is destroyed
+                        const gemCount = Math.floor(Math.random() * 3) + 1;
+                        for (let i = 0; i < gemCount; i++) {
+                            gems.push(new Gem(object.x, object.y, 10));
+                        }
+                        score += 100;
+                    }
+                }
             }
-            
-            player.takeDamage(10);
         }
     });
 

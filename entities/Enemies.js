@@ -9,6 +9,10 @@ class Enemy {
         this.rotation = 0;
         this.health = 30;
         this.color = '#ff0000';
+        this.invulnerable = false;
+        this.invulnerableTime = 0;
+        this.ramInvulnerabilityDuration = 15; // Quarter second at 60 FPS
+        this.isRamDamage = false; // Flag to track if damage is from ramming
     }
 
     draw() {
@@ -36,6 +40,14 @@ class Enemy {
     update() {
         this.behavior();
         
+        // Update invulnerability
+        if (this.invulnerable) {
+            this.invulnerableTime--;
+            if (this.invulnerableTime <= 0) {
+                this.invulnerable = false;
+            }
+        }
+        
         // World boundaries
         this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
         this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
@@ -47,8 +59,15 @@ class Enemy {
         // Base behavior - do nothing
     }
 
-    takeDamage(amount) {
-        this.health -= amount;
+    takeDamage(amount, isRam = false) {
+        if (!this.invulnerable) {
+            this.health -= amount;
+            // Only make enemy invulnerable after taking ram damage
+            if (isRam) {
+                this.invulnerable = true;
+                this.invulnerableTime = this.ramInvulnerabilityDuration;
+            }
+        }
     }
 }
 

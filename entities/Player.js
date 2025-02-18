@@ -24,16 +24,19 @@ class Player {
         this.healthRegen = 0;
         switch(shipClass.name) {
             case 'Tank':
-                this.healthRegen = 0.1; // 6 health per second at 60 FPS
+                this.healthRegen = 0.15; // Tank's regen
                 break;
             case 'Fighter':
-                this.healthRegen = 0.08; // 4.8 health per second at 60 FPS
+                this.healthRegen = 0.08; // Fighter's regen
                 break;
             case 'Speedster':
-                this.healthRegen = 0.03; // 1.8 health per second at 60 FPS
+                this.healthRegen = 0.03; // Speedster's regen
                 break;
             case 'Sniper':
-                this.healthRegen = 0.02; // 1.2 health per second at 60 FPS
+                this.healthRegen = 0.02; // Sniper's regen
+                break;
+            case 'Rammer':
+                this.healthRegen = shipClass.healthRegen; // Use Rammer's defined regen rate
                 break;
         }
         
@@ -132,6 +135,20 @@ class Player {
                     duration: 5 * 60,
                     description: 'Fire a devastating beam of concentrated energy'
                 }
+            },
+            Rammer: {
+                ability1: {
+                    name: 'Charge Up',
+                    maxCooldown: 600,
+                    duration: 0,
+                    description: 'Gain 3 dash charges for powerful ramming attacks'
+                },
+                ability2: {
+                    name: 'Fortify',
+                    maxCooldown: 300,
+                    duration: 300,
+                    description: 'Gain 60% damage reduction and double contact damage'
+                }
             }
         };
 
@@ -154,6 +171,25 @@ class Player {
                 remainingDuration: 0,
                 active: false
             });
+        }
+
+        // Add Rammer-specific properties
+        if (shipClass.name === 'Rammer') {
+            this.dashCharges = 0;
+            this.maxDashCharges = 3;
+            this.isDashing = false;
+            this.dashDuration = 0;
+            this.maxDashDuration = 25;
+            this.chargedDashSpeed = 20;
+            this.chargedDashDamage = 60;
+            this.contactDamageMultiplier = 1;
+            this.damageReduction = 0;
+        }
+
+        // Add Sniper-specific properties
+        if (shipClass.name === 'Sniper') {
+            this.isViewportMode = false;
+            this.viewportEnergyCost = 5/60; // 5 energy per second (divided by 60 for per-frame cost)
         }
     }
 
@@ -355,6 +391,57 @@ class Player {
                 ctx.closePath();
                 ctx.fill();
             }
+        } else if (this.shipClass.name === 'Rammer') {
+            if (this.upgradeLevel === 0) {
+                // Basic rammer - sharp and aggressive
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(0, this.height / 3);
+                ctx.lineTo(-this.width / 4, this.height / 3);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 4, -this.height / 3);
+                ctx.lineTo(0, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 1) {
+                // Level 1 - reinforced ram
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 4, this.height / 3);
+                ctx.lineTo(-this.width / 3, this.height / 3);
+                ctx.lineTo(-this.width / 4, 0);
+                ctx.lineTo(-this.width / 3, -this.height / 3);
+                ctx.lineTo(this.width / 4, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.upgradeLevel === 2) {
+                // Level 2 - armored ram
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 3, this.height / 3);
+                ctx.lineTo(-this.width / 2, this.height / 3);
+                ctx.lineTo(-this.width / 3, 0);
+                ctx.lineTo(-this.width / 2, -this.height / 3);
+                ctx.lineTo(this.width / 3, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Level 3+ - ultimate ram
+                ctx.beginPath();
+                ctx.moveTo(this.width / 2, 0);
+                ctx.lineTo(this.width / 2, this.height / 3);
+                ctx.lineTo(-this.width / 3, this.height / 3);
+                ctx.lineTo(-this.width / 4, 0);
+                ctx.lineTo(-this.width / 3, -this.height / 3);
+                ctx.lineTo(this.width / 2, -this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Add reinforcement details
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
         }
 
         ctx.restore();
@@ -423,6 +510,45 @@ class Player {
             ctx.fillRect(x - barWidth/2, gemY, gemWidth, barHeight);
             ctx.fillStyle = '#fff';
             ctx.fillText(`Gems: ${this.gems}/${nextUpgradeGems}`, x, gemY + 15);
+        }
+        
+        // Draw dash charges for Rammer
+        if (this.shipClass.name === 'Rammer') {
+            const chargeWidth = 30;
+            const chargeHeight = 10;
+            const chargeSpacing = 5;
+            const startX = canvas.width/2 - ((chargeWidth + chargeSpacing) * this.maxDashCharges)/2;
+            const chargeY = canvas.height - 40;
+
+            for (let i = 0; i < this.maxDashCharges; i++) {
+                const chargeX = startX + i * (chargeWidth + chargeSpacing);
+                ctx.fillStyle = i < this.dashCharges ? '#ff4242' : 'rgba(255, 66, 66, 0.3)';
+                ctx.fillRect(chargeX, chargeY, chargeWidth, chargeHeight);
+            }
+        }
+        
+        // Draw charge indicator for Sniper
+        if (this.shipClass.name === 'Sniper') {
+            const chargeWidth = 30;
+            const chargeHeight = 10;
+            const chargeSpacing = 5;
+            const startX = canvas.width/2 - ((chargeWidth + chargeSpacing) * this.maxCharges)/2;
+            const chargeY = canvas.height - 40;
+
+            // Draw charge slots
+            for (let i = 0; i < this.maxCharges; i++) {
+                const chargeX = startX + i * (chargeWidth + chargeSpacing);
+                ctx.fillStyle = i < this.charges ? '#4242ff' : 'rgba(66, 66, 255, 0.3)';
+                ctx.fillRect(chargeX, chargeY, chargeWidth, chargeHeight);
+            }
+
+            // Draw charging progress if currently charging
+            if (this.isCharging) {
+                const progressWidth = (this.chargeTime / this.maxChargeTime) * chargeWidth;
+                const progressX = startX + this.charges * (chargeWidth + chargeSpacing);
+                ctx.fillStyle = 'rgba(66, 66, 255, 0.5)';
+                ctx.fillRect(progressX, chargeY, progressWidth, chargeHeight);
+            }
         }
         
         // Score caption below the bars
@@ -555,7 +681,17 @@ class Player {
             // Calculate angle to mouse
             const screenX = this.x - camera.x;
             const screenY = this.y - camera.y;
-            const targetRotation = Math.atan2(mouse.y - screenY, mouse.x - screenX);
+            let targetRotation;
+            
+            if (this.shipClass.name === 'Sniper' && this.isViewportMode) {
+                // In viewport mode, use world coordinates for rotation
+                const mouseWorldX = mouse.x + camera.x;
+                const mouseWorldY = mouse.y + camera.y;
+                targetRotation = Math.atan2(mouseWorldY - this.y, mouseWorldX - this.x);
+            } else {
+                // Normal rotation calculation for other cases
+                targetRotation = Math.atan2(mouse.y - screenY, mouse.x - screenX);
+            }
             
             // Calculate the shortest rotation direction
             let rotationDiff = targetRotation - this.rotation;
@@ -636,6 +772,17 @@ class Player {
                 this.invulnerable = false;
             }
         }
+
+        // Handle Rammer's dash
+        if (this.isDashing) {
+            if (this.dashDuration > 0) {
+                this.dashDuration--;
+            } else {
+                this.isDashing = false;
+                this.velocityX *= 0.5;
+                this.velocityY *= 0.5;
+            }
+        }
     }
 
     update() {
@@ -645,21 +792,42 @@ class Player {
             this.maxHealth += 50;
             this.health = this.maxHealth;
             this.gems = 0;
+            // Increase Rammer stats with level
+            if (this.shipClass.name === 'Rammer') {
+                this.maxSpeed += 1;
+                this.acceleration += 0.1;
+                this.rotationalAcceleration += 0.002;
+            }
         } else if (this.gems >= UPGRADE_LEVELS.LEVEL3.gems && this.upgradeLevel === 2) {
             this.upgradeLevel = 3;
             this.maxHealth += 40;
             this.health = this.maxHealth;
             this.gems = 0;
+            if (this.shipClass.name === 'Rammer') {
+                this.maxSpeed += 1;
+                this.acceleration += 0.1;
+                this.rotationalAcceleration += 0.002;
+            }
         } else if (this.gems >= UPGRADE_LEVELS.LEVEL2.gems && this.upgradeLevel === 1) {
             this.upgradeLevel = 2;
             this.maxHealth += 30;
             this.health = this.maxHealth;
             this.gems = 0;
+            if (this.shipClass.name === 'Rammer') {
+                this.maxSpeed += 1;
+                this.acceleration += 0.1;
+                this.rotationalAcceleration += 0.002;
+            }
         } else if (this.gems >= UPGRADE_LEVELS.LEVEL1.gems && this.upgradeLevel === 0) {
             this.upgradeLevel = 1;
             this.maxHealth += 20;
             this.health = this.maxHealth;
             this.gems = 0;
+            if (this.shipClass.name === 'Rammer') {
+                this.maxSpeed += 1;
+                this.acceleration += 0.1;
+                this.rotationalAcceleration += 0.002;
+            }
         }
         
         // Apply health regeneration if not at full health and not recently damaged
@@ -674,10 +842,71 @@ class Player {
         if (this.shootCooldown > 0) {
             this.shootCooldown--;
         }
+        
+        // Only shoot if in PLAYING state and mouse is down or space is pressed
+        if (gameState === GAME_STATES.PLAYING && (mouse.isDown || keys[' ']) && this.shootCooldown <= 0) {
+            this.shoot();
+        }
+        
         this.move();
-
-        // Update abilities
         this.updateAbilities();
+
+        // Handle Sniper viewport mechanics
+        if (this.shipClass.name === 'Sniper') {
+            if (mouse.rightDown && this.energy >= this.viewportEnergyCost) {
+                if (!this.isViewportMode) {
+                    // Store initial cursor position when entering viewport mode
+                    this.viewportCursorX = mouse.x + camera.x;
+                    this.viewportCursorY = mouse.y + camera.y;
+                }
+                
+                this.isViewportMode = true;
+                this.energy -= this.viewportEnergyCost;
+                
+                // Calculate distance from player to stored cursor position
+                const distToCursor = distance(this.x, this.y, this.viewportCursorX, this.viewportCursorY);
+                
+                // Calculate maximum view range (2.5 times the current view)
+                const maxViewRange = Math.max(canvas.width, canvas.height) * 1.25; // 2.5/2 = 1.25 (radius)
+                
+                // If cursor is within range, move camera to cursor
+                if (distToCursor <= maxViewRange) {
+                    const targetCameraX = this.viewportCursorX - canvas.width/2;
+                    const targetCameraY = this.viewportCursorY - canvas.height/2;
+                    
+                    camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, targetCameraX));
+                    camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, targetCameraY));
+                } else {
+                    // If cursor is out of range, move camera to maximum allowed distance in that direction
+                    const angle = Math.atan2(this.viewportCursorY - this.y, this.viewportCursorX - this.x);
+                    const limitedX = this.x + Math.cos(angle) * maxViewRange;
+                    const limitedY = this.y + Math.sin(angle) * maxViewRange;
+                    
+                    const targetCameraX = limitedX - canvas.width/2;
+                    const targetCameraY = limitedY - canvas.height/2;
+                    
+                    camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, targetCameraX));
+                    camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, targetCameraY));
+                }
+            } else if (this.isViewportMode) {
+                // When releasing right-click, smoothly return to the player
+                const targetCameraX = this.x - canvas.width/2;
+                const targetCameraY = this.y - canvas.height/2;
+                
+                camera.x += (targetCameraX - camera.x) * 0.1;
+                camera.y += (targetCameraY - camera.y) * 0.1;
+                
+                // Keep camera within bounds
+                camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, camera.x));
+                camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, camera.y));
+                
+                // Check if we're close enough to the target to end viewport mode
+                const distToTarget = distance(camera.x, camera.y, targetCameraX, targetCameraY);
+                if (distToTarget < 1) {
+                    this.isViewportMode = false;
+                }
+            }
+        }
     }
 
     updateAbilities() {
@@ -717,10 +946,11 @@ class Player {
                     this.rotationalAcceleration = this.shipClass.rotationalAcceleration * 0.5;
                     this.energyRegen = this.shipClass.energyRegen * 10;
                     if (this.energy >= this.maxEnergy && this.abilities.ability2.shotsRemaining > 0) {
-                        // Shoot in a line pattern
-                        const spreadAngle = 0.05; // Angle between shots
-                        const startAngle = this.rotation - (spreadAngle * 7); // Start from left
-                        this.createLaser(startAngle + (spreadAngle * (16 - this.abilities.ability2.shotsRemaining)), 2, 8);
+                        // Shoot 16 lasers in a circle
+                        for (let i = 0; i < 16; i++) {
+                            const angle = (i / 16) * Math.PI * 2;
+                            this.createLaser(angle, 2, 4);
+                        }
                         this.abilities.ability2.shotsRemaining--;
                         this.energy = 0;
                     }
@@ -857,6 +1087,16 @@ class Player {
                 ability.shotsRemaining = 16;
                 showNotification('Deathray Charging!');
                 break;
+            case 'Charge Up':
+                this.dashCharges = this.maxDashCharges;
+                ability.active = false; // Instant effect
+                showNotification('Dash Charges Ready!');
+                break;
+            case 'Fortify':
+                this.damageReduction = 0.6;
+                this.contactDamageMultiplier = 2;
+                showNotification('Fortified!');
+                break;
         }
     }
 
@@ -881,16 +1121,75 @@ class Player {
             case 'Squadron':
                 this.abilities.ability2.clones = [];
                 break;
+            case 'Fortify':
+                this.damageReduction = 0;
+                this.contactDamageMultiplier = 1;
+                break;
         }
     }
 
     shoot() {
-        if ((!keys[' '] && !mouse.isDown) || this.energy < this.shootCost || this.shootCooldown > 0) return;
+        if (this.shootCooldown > 0) return;
         
         let energyCost = this.shootCost;
         
+        if (this.shipClass.name === 'Rammer') {
+            // Left click performs a quick dash
+            if (this.energy >= energyCost && !this.isDashing) {
+                this.isDashing = true;
+                this.dashDuration = this.maxDashDuration;
+                const dashSpeed = this.upgradeLevel >= 1 ? 18 : 12;
+                this.velocityX = Math.cos(this.rotation) * dashSpeed;
+                this.velocityY = Math.sin(this.rotation) * dashSpeed;
+                this.energy -= energyCost;
+                this.shootCooldown = this.maxShootCooldown;
+            }
+            return;
+        }
+        
+        // Get the correct rotation based on mode
+        let shootRotation = this.rotation;
+        if (this.shipClass.name === 'Sniper' && this.isViewportMode) {
+            // In viewport mode, calculate rotation to current cursor position
+            const mouseWorldX = mouse.x + camera.x;
+            const mouseWorldY = mouse.y + camera.y;
+            shootRotation = Math.atan2(mouseWorldY - this.y, mouseWorldX - this.x);
+        }
+        
         // Class-specific shooting patterns with different energy costs
-        if (this.shipClass.name === 'Fighter') {
+        if (this.shipClass.name === 'Sniper') {
+            switch(this.upgradeLevel) {
+                case 0: // Single powerful shot
+                    if (this.energy >= energyCost) {
+                        this.createLaser(shootRotation, 1.5, 8);
+                    }
+                    break;
+                case 1: // Two powerful shots
+                    energyCost *= 1.5;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(shootRotation - 0.03, 1.5, 8);
+                        this.createLaser(shootRotation + 0.03, 1.5, 8);
+                    }
+                    break;
+                case 2: // Three powerful shots
+                    energyCost *= 2;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(shootRotation - 0.05, 1.5, 8);
+                        this.createLaser(shootRotation, 1.8, 8);
+                        this.createLaser(shootRotation + 0.05, 1.5, 8);
+                    }
+                    break;
+                default: // Level 3+ - Four powerful shots
+                    energyCost *= 2.5;
+                    if (this.energy >= energyCost) {
+                        this.createLaser(shootRotation - 0.08, 1.5, 8);
+                        this.createLaser(shootRotation - 0.03, 1.8, 8);
+                        this.createLaser(shootRotation + 0.03, 1.8, 8);
+                        this.createLaser(shootRotation + 0.08, 1.5, 8);
+                    }
+                    break;
+            }
+        } else if (this.shipClass.name === 'Fighter') {
             switch(this.upgradeLevel) {
                 case 0: // Single precise shot
                     if (this.energy >= energyCost) {
@@ -984,38 +1283,6 @@ class Player {
                     }
                     break;
             }
-        } else if (this.shipClass.name === 'Sniper') {
-            switch(this.upgradeLevel) {
-                case 0: // Single powerful shot
-                    if (this.energy >= energyCost) {
-                        this.createLaser(this.rotation, 1.5, 8);
-                    }
-                    break;
-                case 1: // Two powerful shots
-                    energyCost *= 1.5;
-                    if (this.energy >= energyCost) {
-                        this.createLaser(this.rotation - 0.03, 1.5, 8);
-                        this.createLaser(this.rotation + 0.03, 1.5, 8);
-                    }
-                    break;
-                case 2: // Three powerful shots
-                    energyCost *= 2;
-                    if (this.energy >= energyCost) {
-                        this.createLaser(this.rotation - 0.05, 1.5, 8);
-                        this.createLaser(this.rotation, 1.8, 8);
-                        this.createLaser(this.rotation + 0.05, 1.5, 8);
-                    }
-                    break;
-                default: // Level 3+ - Four powerful shots
-                    energyCost *= 2.5;
-                    if (this.energy >= energyCost) {
-                        this.createLaser(this.rotation - 0.08, 1.5, 8);
-                        this.createLaser(this.rotation - 0.03, 1.8, 8);
-                        this.createLaser(this.rotation + 0.03, 1.8, 8);
-                        this.createLaser(this.rotation + 0.08, 1.5, 8);
-                    }
-                    break;
-            }
         }
         
         if (this.energy >= energyCost) {
@@ -1073,13 +1340,19 @@ class Player {
 
     takeDamage(amount) {
         if (this.invulnerable) return;
+        
+        // Apply damage reduction for Rammer's Fortify ability
+        if (this.shipClass.name === 'Rammer' && this.abilities.ability2.active) {
+            amount *= (1 - this.damageReduction);
+        }
+        
         this.health -= amount;
         if (this.health <= 0) {
             gameOver = true;
         }
         // Temporary invulnerability
         this.invulnerable = true;
-        this.invulnerableTime = 20; // Reduced from 60 to 20 frames (0.33 seconds)
+        this.invulnerableTime = 20;
     }
 
     heal(amount) {
@@ -1103,5 +1376,52 @@ class Player {
                 this.lasers.splice(i, 1);
             }
         }
+    }
+
+    // Add method to handle right-click for Rammer's charged dash
+    handleRightClick() {
+        if (this.shipClass.name === 'Rammer' && this.dashCharges > 0 && !this.isDashing) {
+            this.isDashing = true;
+            this.dashDuration = this.maxDashDuration;
+            this.dashCharges--;
+            
+            // Apply charged dash velocity with level scaling
+            const scaledDashSpeed = this.chargedDashSpeed * (1 + this.upgradeLevel * 0.15); // 15% increase per level
+            this.velocityX = Math.cos(this.rotation) * scaledDashSpeed;
+            this.velocityY = Math.sin(this.rotation) * scaledDashSpeed;
+        }
+    }
+
+    // Add method to calculate contact damage
+    calculateContactDamage() {
+        if (this.shipClass.name !== 'Rammer') return 0;
+        
+        const baseContactDamage = 10 + (this.upgradeLevel * 2.5); // Halved from 20 + 5 per level
+        const speedMultiplier = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY) / this.maxSpeed;
+        let damage = baseContactDamage * speedMultiplier;
+        
+        if (this.isDashing) {
+            damage *= 2.5;
+        }
+        
+        if (this.abilities.ability2.active) {
+            damage *= this.contactDamageMultiplier;
+        }
+        
+        return Math.max(5, Math.min(60, damage)); // Halved max and min damage
+    }
+
+    fireChargedShot() {
+        if (this.shootCooldown > 0) return;
+        
+        // Create a powerful charged shot with normal sniper speed
+        const sizeMultiplier = 2;
+        const speedMultiplier = 8; // Same as normal sniper shots
+        const damageMultiplier = 3;
+        
+        this.createLaser(this.rotation, sizeMultiplier, speedMultiplier);
+        
+        // No cooldown for charged shots
+        this.shootCooldown = 0;
     }
 }

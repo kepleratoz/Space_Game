@@ -33,6 +33,9 @@ window.addEventListener('mousedown', (e) => {
                         }
                     }
                 });
+            } else if (gameState === GAME_STATES.PLAYING && player) {
+                // Handle Rammer's charged dash
+                player.handleRightClick();
             }
             e.preventDefault(); // Prevent context menu
             break;

@@ -88,7 +88,6 @@ function gameLoop() {
 
         // Update player
         player.update();
-        player.shoot();
         player.updateLasers();
 
         // Update gems

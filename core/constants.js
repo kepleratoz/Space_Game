@@ -70,5 +70,18 @@ const SHIP_CLASSES = {
         energyRegen: 0.4,
         color: '#f5d742',
         xpRequired: 500
+    },
+    RAMMER: {
+        name: 'Rammer',
+        health: 125,
+        maxSpeed: 7,
+        acceleration: 0.5,
+        rotationalAcceleration: 0.012,
+        shootCost: 20,
+        maxEnergy: 100,
+        energyRegen: 1.0,
+        healthRegen: 0.08,
+        color: '#ff4242',
+        xpRequired: 500
     }
 }; 
