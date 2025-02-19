@@ -77,11 +77,16 @@ const SHIP_CLASSES = {
         maxSpeed: 7,
         acceleration: 0.5,
         rotationalAcceleration: 0.012,
-        shootCost: 20,
+        shootCost: 40,
         maxEnergy: 100,
         energyRegen: 1.0,
         healthRegen: 0.08,
         color: '#ff4242',
-        xpRequired: 500
+        xpRequired: 500,
+        energyScaling: {
+            maxEnergyPerLevel: 15,
+            regenPerLevel: 0.2,
+            costPerLevel: 10
+        }
     }
 }; 

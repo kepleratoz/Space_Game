@@ -157,6 +157,11 @@ window.addEventListener('keydown', (e) => {
                 enemies = [];
                 showNotification('Cleared All Enemies');
                 break;
+            case 'f':
+            case 'F':
+                window.isFrozen = !window.isFrozen;
+                showNotification(window.isFrozen ? 'Enemies Frozen' : 'Enemies Unfrozen');
+                break;
         }
     }
 });

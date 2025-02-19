@@ -52,6 +52,9 @@ class Player {
         this.velocityY = 0;
         this.invulnerable = false;
         this.invulnerableTime = 0;
+        this.regularInvulnerabilityDuration = 8; // 0.13 seconds at 60 FPS for regular hits
+        this.ramInvulnerabilityDuration = 20; // 0.33 seconds at 60 FPS for ram hits
+        this.lastHitTime = 0; // Track the last time player was hit
         this.mouseControls = true;
 
         // Add ability system
@@ -147,7 +150,7 @@ class Player {
                     name: 'Fortify',
                     maxCooldown: 300,
                     duration: 300,
-                    description: 'Gain 60% damage reduction and double contact damage'
+                    description: 'Gain 45% damage reduction and double contact damage'
                 }
             }
         };
@@ -797,6 +800,10 @@ class Player {
                 this.maxSpeed += 1;
                 this.acceleration += 0.1;
                 this.rotationalAcceleration += 0.002;
+                // Scale energy values
+                this.maxEnergy += this.shipClass.energyScaling.maxEnergyPerLevel;
+                this.energyRegen += this.shipClass.energyScaling.regenPerLevel;
+                this.shootCost += this.shipClass.energyScaling.costPerLevel;
             }
         } else if (this.gems >= UPGRADE_LEVELS.LEVEL3.gems && this.upgradeLevel === 2) {
             this.upgradeLevel = 3;
@@ -807,6 +814,10 @@ class Player {
                 this.maxSpeed += 1;
                 this.acceleration += 0.1;
                 this.rotationalAcceleration += 0.002;
+                // Scale energy values
+                this.maxEnergy += this.shipClass.energyScaling.maxEnergyPerLevel;
+                this.energyRegen += this.shipClass.energyScaling.regenPerLevel;
+                this.shootCost += this.shipClass.energyScaling.costPerLevel;
             }
         } else if (this.gems >= UPGRADE_LEVELS.LEVEL2.gems && this.upgradeLevel === 1) {
             this.upgradeLevel = 2;
@@ -817,6 +828,10 @@ class Player {
                 this.maxSpeed += 1;
                 this.acceleration += 0.1;
                 this.rotationalAcceleration += 0.002;
+                // Scale energy values
+                this.maxEnergy += this.shipClass.energyScaling.maxEnergyPerLevel;
+                this.energyRegen += this.shipClass.energyScaling.regenPerLevel;
+                this.shootCost += this.shipClass.energyScaling.costPerLevel;
             }
         } else if (this.gems >= UPGRADE_LEVELS.LEVEL1.gems && this.upgradeLevel === 0) {
             this.upgradeLevel = 1;
@@ -827,6 +842,10 @@ class Player {
                 this.maxSpeed += 1;
                 this.acceleration += 0.1;
                 this.rotationalAcceleration += 0.002;
+                // Scale energy values
+                this.maxEnergy += this.shipClass.energyScaling.maxEnergyPerLevel;
+                this.energyRegen += this.shipClass.energyScaling.regenPerLevel;
+                this.shootCost += this.shipClass.energyScaling.costPerLevel;
             }
         }
         
@@ -1093,7 +1112,7 @@ class Player {
                 showNotification('Dash Charges Ready!');
                 break;
             case 'Fortify':
-                this.damageReduction = 0.6;
+                this.damageReduction = 0.45;
                 this.contactDamageMultiplier = 2;
                 showNotification('Fortified!');
                 break;
@@ -1338,8 +1357,15 @@ class Player {
         });
     }
 
-    takeDamage(amount) {
+    takeDamage(amount, isRam = false) {
         if (this.invulnerable) return;
+        
+        // Check hit cooldown
+        const currentTime = Date.now();
+        if (currentTime - this.lastHitTime < (isRam ? 250 : 100)) { // 250ms for rams, 100ms for regular hits
+            return; // Skip damage if hit too recently
+        }
+        this.lastHitTime = currentTime;
         
         // Apply damage reduction for Rammer's Fortify ability
         if (this.shipClass.name === 'Rammer' && this.abilities.ability2.active) {
@@ -1352,7 +1378,7 @@ class Player {
         }
         // Temporary invulnerability
         this.invulnerable = true;
-        this.invulnerableTime = 20;
+        this.invulnerableTime = isRam ? this.ramInvulnerabilityDuration : this.regularInvulnerabilityDuration;
     }
 
     heal(amount) {
@@ -1395,20 +1421,24 @@ class Player {
     // Add method to calculate contact damage
     calculateContactDamage() {
         if (this.shipClass.name !== 'Rammer') return 0;
-        
-        const baseContactDamage = 10 + (this.upgradeLevel * 2.5); // Halved from 20 + 5 per level
-        const speedMultiplier = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY) / this.maxSpeed;
-        let damage = baseContactDamage * speedMultiplier;
-        
-        if (this.isDashing) {
-            damage *= 2.5;
-        }
-        
-        if (this.abilities.ability2.active) {
-            damage *= this.contactDamageMultiplier;
-        }
-        
-        return Math.max(5, Math.min(60, damage)); // Halved max and min damage
+
+        // Reduced base damage to 12 and level scaling to 1.5
+        const baseDamage = 12 + (this.upgradeLevel * 1.5);
+
+        // Speed multiplier capped at 1.5x (reduced from 1.75x)
+        const speedMultiplier = Math.min(1.5, Math.sqrt(
+            this.velocityX * this.velocityX + 
+            this.velocityY * this.velocityY
+        ) / 3);
+
+        // Reduced dash multiplier to 2.2 (from 2.5)
+        const dashMultiplier = this.isDashing ? 2.2 : 1;
+
+        // Apply ability multiplier if Fortify is active
+        const abilityMultiplier = this.abilities.ability2.active && this.abilities.ability2.name === 'Fortify' ? 2 : 1;
+
+        // Calculate final damage
+        return Math.round(baseDamage * speedMultiplier * dashMultiplier * abilityMultiplier);
     }
 
     fireChargedShot() {

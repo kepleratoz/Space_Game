@@ -109,11 +109,13 @@ function gameLoop() {
 
         // Update and handle enemy projectiles
         if (enemyProjectiles) {
-            // Update projectile positions
-            enemyProjectiles.forEach(projectile => {
-                projectile.x += projectile.velocityX;
-                projectile.y += projectile.velocityY;
-            });
+            // Update projectile positions only if not frozen
+            if (!window.isFrozen) {
+                enemyProjectiles.forEach(projectile => {
+                    projectile.x += projectile.velocityX;
+                    projectile.y += projectile.velocityY;
+                });
+            }
 
             // Remove projectiles that are off screen
             enemyProjectiles = enemyProjectiles.filter(projectile => 
@@ -137,6 +139,10 @@ function gameLoop() {
     [...asteroids, ...enemies, ...healthPacks, ...gems].forEach(obj => obj.draw());
     player.drawLasers();
     player.draw();
+
+    // Update and draw damage numbers
+    damageNumbers = damageNumbers.filter(number => !number.update());
+    damageNumbers.forEach(number => number.draw());
 
     // Draw UI elements
     drawMinimap();

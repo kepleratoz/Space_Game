@@ -1,5 +1,41 @@
 const FRICTION = 0.98;
 const BOUNCE = 0.7;
+
+class DamageNumber {
+    constructor(x, y, amount, color = '#ff0000') {
+        this.x = x;
+        this.y = y;
+        this.amount = Math.round(amount);
+        this.color = color;
+        this.life = 30; // 0.5 seconds at 60 FPS
+        this.velocityY = -2; // Float upward
+        this.alpha = 1;
+    }
+
+    update() {
+        this.y += this.velocityY;
+        this.life--;
+        this.alpha = this.life / 30;
+        return this.life <= 0;
+    }
+
+    draw() {
+        const screenX = this.x - camera.x;
+        const screenY = this.y - camera.y;
+        
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.amount, screenX, screenY);
+        ctx.restore();
+    }
+}
+
+// Initialize damage numbers array at the top
+let damageNumbers = [];
+
 function handleCollisions() {
     const playerRadius = player.width / 2;
 
@@ -28,7 +64,12 @@ function handleCollisions() {
                 
                 // Damage based on impact speed
                 const damage = Math.min(30, Math.max(10, impactSpeed * 5));
+                const oldHealth = enemy.health;
                 enemy.takeDamage(damage, true);
+                const actualDamage = oldHealth - enemy.health;
+                if (actualDamage > 0) {
+                    damageNumbers.push(new DamageNumber(enemy.x, enemy.y, actualDamage));
+                }
             }
         });
     });
@@ -91,7 +132,12 @@ function handleCollisions() {
         // Handle the closest hit
         if (hitEnemy) {
             hitSomething = true;
+            const oldHealth = hitEnemy.health;
             hitEnemy.takeDamage(laser.damage);
+            const actualDamage = oldHealth - hitEnemy.health;
+            if (actualDamage > 0) {
+                damageNumbers.push(new DamageNumber(hitEnemy.x, hitEnemy.y, actualDamage));
+            }
             if (hitEnemy.health <= 0) {
                 // Drop gems when enemy is destroyed
                 const gemCount = Math.floor(Math.random() * 3) + 1;
@@ -197,33 +243,81 @@ function handleCollisions() {
                 player.velocityY *= 0.9;
 
                 // Deal damage to player
-                const impactDamage = Math.min(30, Math.max(10, relativeSpeed * 3));
-                player.takeDamage(impactDamage);
+                const impactDamage = Math.min(20, Math.max(5, relativeSpeed * 2));
+                const oldPlayerHealth = player.health;
+                player.takeDamage(impactDamage, true); // Asteroid collisions count as ram damage
+                const actualPlayerDamage = oldPlayerHealth - player.health;
+                if (actualPlayerDamage > 0) {
+                    damageNumbers.push(new DamageNumber(player.x, player.y, actualPlayerDamage));
+                }
+
+                // If player is Rammer, apply contact damage to asteroid
+                if (player.shipClass.name === 'Rammer') {
+                    const contactDamage = player.calculateContactDamage();
+                    const oldAsteroidHealth = object.health;
+                    // Asteroids take double damage from ramming to make them more satisfying to destroy
+                    object.health -= contactDamage * 2;
+                    const actualDamage = oldAsteroidHealth - object.health;
+                    if (actualDamage > 0) {
+                        damageNumbers.push(new DamageNumber(object.x, object.y, actualDamage, '#ff4242')); // Rammer damage in red
+                    }
+                    
+                    // Check if asteroid was destroyed
+                    if (object.health <= 0) {
+                        // Drop gems when asteroid is destroyed
+                        const gemCount = Math.floor(Math.random() * 2) + 1;
+                        for (let i = 0; i < gemCount; i++) {
+                            gems.push(new Gem(object.x, object.y, 5));
+                        }
+                        score += 50;
+                    }
+                }
             } else {
                 // For enemies, keep existing behavior
                 object.x -= Math.cos(angle) * overlap;
                 object.y -= Math.sin(angle) * overlap;
                 
                 // Calculate push force based on player's velocity and whether they're dashing
-                const pushForce = player.isDashing ? 2.5 : 1;
+                const pushForce = player.isDashing ? 5 : 2;
                 const velocityMagnitude = Math.sqrt(player.velocityX * player.velocityX + player.velocityY * player.velocityY);
                 const normalizedVelocity = {
                     x: player.velocityX / velocityMagnitude,
                     y: player.velocityY / velocityMagnitude
                 };
                 
-                // Apply push force to enemy
-                object.velocityX = normalizedVelocity.x * velocityMagnitude * pushForce;
-                object.velocityY = normalizedVelocity.y * velocityMagnitude * pushForce;
+                // Apply push force to enemy with additional mass factor for Rammer
+                const massFactor = player.shipClass.name === 'Rammer' ? 1.5 : 1;
+                object.velocityX = normalizedVelocity.x * velocityMagnitude * pushForce * massFactor;
+                object.velocityY = normalizedVelocity.y * velocityMagnitude * pushForce * massFactor;
 
                 // Deal damage to both player and enemy
-                const baseDamage = 10;
-                player.takeDamage(baseDamage);
+                const baseDamage = 5; // Base contact damage
+                const relativeSpeed = Math.sqrt(
+                    Math.pow(player.velocityX - object.velocityX, 2) +
+                    Math.pow(player.velocityY - object.velocityY, 2)
+                );
+                
+                // Scale damage based on relative speed, capped at 2x
+                const speedMultiplier = Math.min(2, 1 + (relativeSpeed / player.maxSpeed));
+                const finalDamage = baseDamage * speedMultiplier;
+                
+                const isRamming = player.shipClass.name === 'Rammer' && (player.isDashing || velocityMagnitude > player.maxSpeed * 0.5);
+                const oldPlayerHealth = player.health;
+                player.takeDamage(finalDamage, isRamming);
+                const actualPlayerDamage = oldPlayerHealth - player.health;
+                if (actualPlayerDamage > 0) {
+                    damageNumbers.push(new DamageNumber(player.x, player.y, actualPlayerDamage));
+                }
 
                 // If player is Rammer, apply contact damage to enemy
                 if (player.shipClass.name === 'Rammer') {
                     const contactDamage = player.calculateContactDamage();
+                    const oldEnemyHealth = object.health;
                     object.takeDamage(contactDamage, true);
+                    const actualEnemyDamage = oldEnemyHealth - object.health;
+                    if (actualEnemyDamage > 0) {
+                        damageNumbers.push(new DamageNumber(object.x, object.y, actualEnemyDamage, '#ff4242')); // Rammer damage in red
+                    }
                     
                     // Check if enemy was destroyed and drop gems
                     if (object.health <= 0) {
@@ -263,7 +357,12 @@ function handleCollisions() {
     if (enemyProjectiles && player) {
         enemyProjectiles = enemyProjectiles.filter(projectile => {
             if (distance(projectile.x, projectile.y, player.x, player.y) < playerRadius + projectile.width/2) {
+                const oldHealth = player.health;
                 player.takeDamage(projectile.damage);
+                const actualDamage = oldHealth - player.health;
+                if (actualDamage > 0) {
+                    damageNumbers.push(new DamageNumber(player.x, player.y, actualDamage));
+                }
                 return false;
             }
             return true;

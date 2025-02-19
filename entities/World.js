@@ -14,6 +14,10 @@ class Asteroid {
         this.rotationSpeed = (Math.random() - 0.5) * 0.02;
         this.health = 50;
         this.mass = 5; // Add mass property for collision calculations
+        this.invulnerable = false;
+        this.invulnerableTime = 0;
+        this.ramInvulnerabilityDuration = 20; // Same as enemies
+        this.lastRamTime = 0;
     }
 
     draw() {
@@ -51,6 +55,14 @@ class Asteroid {
         this.x += this.velocityX;
         this.y += this.velocityY;
         this.rotation += this.rotationSpeed;
+
+        // Update invulnerability
+        if (this.invulnerable) {
+            this.invulnerableTime--;
+            if (this.invulnerableTime <= 0) {
+                this.invulnerable = false;
+            }
+        }
 
         // Bounce off world boundaries with high conservation of momentum
         if (this.x < 0 || this.x > WORLD_WIDTH) {
@@ -95,6 +107,25 @@ class Asteroid {
         // Slightly adjust asteroid velocity
         this.velocityX *= (1 - thisSpeedLoss);
         this.velocityY *= (1 - thisSpeedLoss);
+    }
+
+    // Add method to handle taking damage
+    takeDamage(amount, isRam = false) {
+        const currentTime = Date.now();
+
+        if (isRam) {
+            // For ram damage, check if enough time has passed since last ram
+            if (currentTime - this.lastRamTime < 250) { // 250ms minimum between ram hits
+                return;
+            }
+            this.lastRamTime = currentTime;
+        }
+
+        if (!this.invulnerable) {
+            this.health -= amount;
+            this.invulnerable = true;
+            this.invulnerableTime = this.ramInvulnerabilityDuration;
+        }
     }
 }
 

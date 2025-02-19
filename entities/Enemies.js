@@ -11,8 +11,11 @@ class Enemy {
         this.color = '#ff0000';
         this.invulnerable = false;
         this.invulnerableTime = 0;
-        this.ramInvulnerabilityDuration = 15; // Quarter second at 60 FPS
+        this.ramInvulnerabilityDuration = 20; // Reduced from 45 to 20 (0.33 seconds at 60 FPS)
+        this.lastRamTime = 0; // Track the last time this enemy was rammed
         this.isRamDamage = false; // Flag to track if damage is from ramming
+        this.regularInvulnerabilityDuration = 8; // 0.13 seconds at 60 FPS for regular hits
+        this.lastHitTime = 0; // Track the last time this enemy was hit by any damage
     }
 
     draw() {
@@ -38,19 +41,22 @@ class Enemy {
     }
 
     update() {
-        this.behavior();
-        
-        // Update invulnerability
-        if (this.invulnerable) {
-            this.invulnerableTime--;
-            if (this.invulnerableTime <= 0) {
-                this.invulnerable = false;
+        // Skip behavior update if frozen
+        if (!window.isFrozen) {
+            this.behavior();
+            
+            // Update invulnerability
+            if (this.invulnerable) {
+                this.invulnerableTime--;
+                if (this.invulnerableTime <= 0) {
+                    this.invulnerable = false;
+                }
             }
+            
+            // World boundaries
+            this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
+            this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
         }
-        
-        // World boundaries
-        this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
-        this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
 
         return this.health <= 0;
     }
@@ -60,13 +66,26 @@ class Enemy {
     }
 
     takeDamage(amount, isRam = false) {
+        const currentTime = Date.now();
+
+        if (isRam) {
+            // For ram damage, check if enough time has passed since last ram
+            if (currentTime - this.lastRamTime < 250) { // Reduced from 500ms to 250ms minimum between ram hits
+                return; // Skip damage if hit too recently
+            }
+            this.lastRamTime = currentTime;
+        } else {
+            // For regular damage, check if enough time has passed since last hit
+            if (currentTime - this.lastHitTime < 100) { // 100ms minimum between regular hits
+                return; // Skip damage if hit too recently
+            }
+            this.lastHitTime = currentTime;
+        }
+
         if (!this.invulnerable) {
             this.health -= amount;
-            // Only make enemy invulnerable after taking ram damage
-            if (isRam) {
-                this.invulnerable = true;
-                this.invulnerableTime = this.ramInvulnerabilityDuration;
-            }
+            this.invulnerable = true;
+            this.invulnerableTime = isRam ? this.ramInvulnerabilityDuration : this.regularInvulnerabilityDuration;
         }
     }
 }
@@ -109,12 +128,12 @@ class ShooterEnemy extends Enemy {
         this.maxSpeed = 2;
         this.shootCooldown = 0;
         this.maxShootCooldown = 60;
-        this.aggroRange = 500; // Range at which enemy will start chasing player
-        this.shootRange = 400; // Range at which enemy will start shooting
-        this.idleSpeed = 0.5; // Slow speed for idle movement
-        this.idleAngle = Math.random() * Math.PI * 2; // Random direction for idle movement
+        this.aggroRange = 800; // Increased from 500
+        this.shootRange = 600; // Increased from 400
+        this.idleSpeed = 0.5;
+        this.idleAngle = Math.random() * Math.PI * 2;
         this.idleTimer = 0;
-        this.idleChangeInterval = 180; // Change idle direction every 3 seconds
+        this.idleChangeInterval = 180;
     }
 
     drawShape(x, y) {
@@ -125,6 +144,11 @@ class ShooterEnemy extends Enemy {
     }
 
     update() {
+        // Skip all updates if frozen
+        if (window.isFrozen) {
+            return this.health <= 0;
+        }
+
         const distToPlayer = distance(this.x, this.y, player.x, player.y);
         const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
 
@@ -239,6 +263,8 @@ class DasherEnemy extends Enemy {
     }
 
     behavior() {
+        if (window.isFrozen) return;
+
         // Rotate slowly towards player
         const targetRotation = Math.atan2(player.y - this.y, player.x - this.x);
         const rotationDiff = targetRotation - this.rotation;
@@ -281,28 +307,45 @@ class DasherEnemy extends Enemy {
 class BomberEnemy extends Enemy {
     constructor(x, y) {
         super(x, y);
-        this.color = '#ff8800';
+        this.color = '#4287f5'; // Electric blue color
         this.speed = 2;
         this.health = 50;
-        this.healCooldown = 0;
-        this.maxHealCooldown = 120;
-        this.healRadius = 150;
-        this.healAmount = 10;
-        this.healingParticles = [];
+        this.shootCooldown = 0;
+        this.maxShootCooldown = 180; // 3 seconds
+        this.orbs = [];
+        this.orbSpeed = 3;
+        this.orbSize = 20;
+        this.orbDamage = 25;
+        this.orbRange = 400; // Range before orbs dissipate
+        this.orbSpread = Math.PI / 16; // Increased spread (1/16 of PI instead of 1/32)
     }
 
     drawShape(x, y) {
-        // Draw diamond shape
+        // Draw hexagon shape
         ctx.beginPath();
-        ctx.moveTo(x + this.width/2, y);
-        ctx.lineTo(x, y + this.height/4);
-        ctx.lineTo(x - this.width/2, y);
-        ctx.lineTo(x, y - this.height/4);
+        for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI * 2) / 6;
+            const px = x + Math.cos(angle) * this.width/2;
+            const py = y + Math.sin(angle) * this.width/2;
+            if (i === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
         ctx.closePath();
+        ctx.fill();
+
+        // Draw cyan circle center
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.arc(x, y, this.width/4, 0, Math.PI * 2);
         ctx.fill();
     }
 
     behavior() {
+        if (window.isFrozen) return;
+
         // Move in a figure-8 pattern around the player
         const time = Date.now() / 1000;
         const radius = 200;
@@ -318,68 +361,107 @@ class BomberEnemy extends Enemy {
         this.x += this.velocityX;
         this.y += this.velocityY;
 
-        // Heal nearby enemies
-        if (this.healCooldown <= 0) {
-            // Find nearby enemies
-            enemies.forEach(enemy => {
-                if (enemy !== this) {
-                    const dist = distance(this.x, this.y, enemy.x, enemy.y);
-                    if (dist < this.healRadius) {
-                        enemy.health = Math.min(enemy.maxHealth || 100, enemy.health + this.healAmount);
-                        // Add healing particles
-                        for (let i = 0; i < 3; i++) {
-                            this.healingParticles.push({
-                                x: enemy.x,
-                                y: enemy.y,
-                                angle: Math.random() * Math.PI * 2,
-                                speed: 2,
-                                life: 20
-                            });
-                        }
-                    }
-                }
-            });
-            this.healCooldown = this.maxHealCooldown;
+        // Shoot orbs
+        if (this.shootCooldown <= 0) {
+            this.shootOrbs();
+            this.shootCooldown = this.maxShootCooldown;
         } else {
-            this.healCooldown--;
+            this.shootCooldown--;
         }
 
-        // Update healing particles
-        for (let i = this.healingParticles.length - 1; i >= 0; i--) {
-            const particle = this.healingParticles[i];
-            particle.x += Math.cos(particle.angle) * particle.speed;
-            particle.y += Math.sin(particle.angle) * particle.speed;
-            particle.life--;
-            if (particle.life <= 0) {
-                this.healingParticles.splice(i, 1);
+        // Update orbs
+        if (!window.isFrozen) {
+            for (let i = this.orbs.length - 1; i >= 0; i--) {
+                const orb = this.orbs[i];
+                orb.x += orb.velocityX;
+                orb.y += orb.velocityY;
+                orb.distanceTraveled += Math.sqrt(orb.velocityX * orb.velocityX + orb.velocityY * orb.velocityY);
+
+                // Check collision with player
+                if (distance(orb.x, orb.y, player.x, player.y) < (player.width + this.orbSize) / 2) {
+                    player.takeDamage(this.orbDamage);
+                }
+
+                // Remove orb if it's gone too far
+                if (orb.distanceTraveled > this.orbRange) {
+                    this.orbs.splice(i, 1);
+                }
             }
+        }
+    }
+
+    shootOrbs() {
+        const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
+        
+        // Shoot 3 orbs in a narrow spread
+        for (let i = 0; i < 3; i++) {
+            const spreadOffset = (i - 1) * this.orbSpread; // -spread, 0, +spread
+            const angle = baseAngle + spreadOffset;
+            const orb = {
+                x: this.x,
+                y: this.y,
+                velocityX: Math.cos(angle) * this.orbSpeed,
+                velocityY: Math.sin(angle) * this.orbSpeed,
+                distanceTraveled: 0
+            };
+            this.orbs.push(orb);
         }
     }
 
     draw() {
         super.draw();
         
-        // Draw heal radius when healing is ready
-        if (this.healCooldown <= 20) {
-            const screenX = this.x - camera.x;
-            const screenY = this.y - camera.y;
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(screenX, screenY, this.healRadius, 0, Math.PI * 2);
-            ctx.stroke();
+        // Draw orbs and connecting electric lines
+        if (this.orbs.length > 0) {
+            // Draw electric connections between orbs
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 3;
+            
+            for (let i = 0; i < this.orbs.length - 1; i++) {
+                const orb1 = this.orbs[i];
+                const orb2 = this.orbs[i + 1];
+                
+                // Draw lightning effect between orbs
+                ctx.beginPath();
+                const segments = 4;
+                let startX = orb1.x - camera.x;
+                let startY = orb1.y - camera.y;
+                const endX = orb2.x - camera.x;
+                const endY = orb2.y - camera.y;
+                
+                ctx.moveTo(startX, startY);
+                for (let j = 1; j < segments; j++) {
+                    const ratio = j / segments;
+                    const midX = startX + (endX - startX) * ratio;
+                    const midY = startY + (endY - startY) * ratio;
+                    const offset = (Math.random() - 0.5) * 8; // Reduced offset from 20 to 8
+                    ctx.lineTo(midX + offset, midY + offset);
+                }
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+
+            // Draw orbs
+            ctx.fillStyle = '#4287f5';
+            this.orbs.forEach(orb => {
+                const screenX = orb.x - camera.x;
+                const screenY = orb.y - camera.y;
+                
+                // Draw glow effect
+                const gradient = ctx.createRadialGradient(
+                    screenX, screenY, 0,
+                    screenX, screenY, this.orbSize
+                );
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(0.5, '#4287f5');
+                gradient.addColorStop(1, 'rgba(66, 135, 245, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.orbSize, 0, Math.PI * 2);
+                ctx.fill();
+            });
         }
-        
-        // Draw healing particles
-        ctx.fillStyle = '#00ff00';
-        this.healingParticles.forEach(particle => {
-            const screenX = particle.x - camera.x;
-            const screenY = particle.y - camera.y;
-            const size = (particle.life / 20) * 5;
-            ctx.beginPath();
-            ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
-            ctx.fill();
-        });
     }
 }
 
@@ -391,10 +473,16 @@ class SwarmerEnemy extends Enemy {
         this.health = 70;
         this.maxHealth = 70;
         this.shootCooldown = 0;
-        this.maxShootCooldown = 420; // Changed to 7 seconds (60 FPS * 7)
+        this.maxShootCooldown = 420;
         this.missiles = [];
         this.missileSpeed = 8;
         this.missileTurnSpeed = 0.02;
+        this.aggroRange = 800; // Match ShooterEnemy
+        this.shootRange = 600; // Match ShooterEnemy
+        this.idleSpeed = 0.5;
+        this.idleAngle = Math.random() * Math.PI * 2;
+        this.idleTimer = 0;
+        this.idleChangeInterval = 180;
     }
 
     drawShape(x, y) {
@@ -415,74 +503,90 @@ class SwarmerEnemy extends Enemy {
     }
 
     behavior() {
-        // Rotate to face player
+        if (window.isFrozen) return;
+
+        const distToPlayer = distance(this.x, this.y, player.x, player.y);
         const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
         this.rotation = angleToPlayer;
-        
-        // Move like shooter enemy - maintain distance
-        const distToPlayer = distance(this.x, this.y, player.x, player.y);
-        const idealDistance = 400; // Keep more distance than regular shooter
-        const moveSpeed = 2;
-        
-        if (distToPlayer < idealDistance - 50) {
-            // Move away
-            this.velocityX = -Math.cos(this.rotation) * moveSpeed;
-            this.velocityY = -Math.sin(this.rotation) * moveSpeed;
-        } else if (distToPlayer > idealDistance + 50) {
-            // Move closer
-            this.velocityX = Math.cos(this.rotation) * moveSpeed;
-            this.velocityY = Math.sin(this.rotation) * moveSpeed;
+
+        if (distToPlayer < this.aggroRange) {
+            // In aggro range - maintain shoot range like ShooterEnemy
+            const targetDist = this.shootRange;
+            const moveSpeed = this.speed;
+
+            if (distToPlayer < targetDist - 50) {
+                // Too close, back away
+                this.x -= Math.cos(angleToPlayer) * moveSpeed;
+                this.y -= Math.sin(angleToPlayer) * moveSpeed;
+            } else if (distToPlayer > targetDist + 50) {
+                // Too far, move closer
+                this.x += Math.cos(angleToPlayer) * moveSpeed;
+                this.y += Math.sin(angleToPlayer) * moveSpeed;
+            } else {
+                this.velocityX *= 0.95;
+                this.velocityY *= 0.95;
+            }
+
+            // Shoot if in range
+            if (this.shootCooldown <= 0 && distToPlayer < this.shootRange) {
+                this.shootMissiles();
+                this.shootCooldown = this.maxShootCooldown;
+            }
         } else {
-            this.velocityX *= 0.95;
-            this.velocityY *= 0.95;
+            // Outside aggro range - idle movement
+            this.idleTimer++;
+            if (this.idleTimer >= this.idleChangeInterval) {
+                this.idleTimer = 0;
+                this.idleAngle = Math.random() * Math.PI * 2;
+            }
+
+            // Move in idle direction
+            this.x += Math.cos(this.idleAngle) * this.idleSpeed;
+            this.y += Math.sin(this.idleAngle) * this.idleSpeed;
         }
 
-        this.x += this.velocityX;
-        this.y += this.velocityY;
-
-        // Shooting logic
-        if (this.shootCooldown <= 0) {
-            this.shootMissiles();
-            this.shootCooldown = this.maxShootCooldown;
-        } else {
+        // Update shoot cooldown
+        if (this.shootCooldown > 0) {
             this.shootCooldown--;
         }
 
         // Update missiles
-        for (let i = this.missiles.length - 1; i >= 0; i--) {
-            const missile = this.missiles[i];
-            
-            // Calculate angle to player for homing
-            const targetAngle = Math.atan2(player.y - missile.y, player.x - missile.x);
-            let angleDiff = targetAngle - missile.rotation;
-            
-            // Normalize angle difference
-            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-            
-            // Turn slowly towards player
-            missile.rotation += Math.sign(angleDiff) * this.missileTurnSpeed;
-            
-            // Move in current rotation direction
-            missile.velocityX = Math.cos(missile.rotation) * this.missileSpeed;
-            missile.velocityY = Math.sin(missile.rotation) * this.missileSpeed;
-            
-            missile.x += missile.velocityX;
-            missile.y += missile.velocityY;
-            missile.life--;
+        if (!window.isFrozen) {
+            for (let i = this.missiles.length - 1; i >= 0; i--) {
+                const missile = this.missiles[i];
+                
+                // Calculate angle to player for homing
+                const targetAngle = Math.atan2(player.y - missile.y, player.x - missile.x);
+                let angleDiff = targetAngle - missile.rotation;
+                
+                // Normalize angle difference
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                
+                // Turn slowly towards player
+                missile.rotation += Math.sign(angleDiff) * this.missileTurnSpeed;
+                
+                // Move in current rotation direction
+                missile.velocityX = Math.cos(missile.rotation) * this.missileSpeed;
+                missile.velocityY = Math.sin(missile.rotation) * this.missileSpeed;
+                
+                missile.x += missile.velocityX;
+                missile.y += missile.velocityY;
+                missile.life--;
 
-            // Check collision with player
-            if (distance(missile.x, missile.y, player.x, player.y) < (player.width + missile.width) / 2) {
-                player.takeDamage(missile.damage);
-                this.missiles.splice(i, 1);
-                continue;
-            }
+                // Check collision with player
+                if (distance(missile.x, missile.y, player.x, player.y) < (player.width + missile.width) / 2) {
+                    player.takeDamage(missile.damage);
+                    this.missiles.splice(i, 1);
+                    continue;
+                }
 
-            // Remove missile if expired or off screen
-            if (missile.life <= 0 || 
-                missile.x < 0 || missile.x > WORLD_WIDTH || 
-                missile.y < 0 || missile.y > WORLD_HEIGHT) {
-                this.missiles.splice(i, 1);
+                // Remove missile if expired or off screen
+                if (missile.life <= 0 || 
+                    missile.x < 0 || missile.x > WORLD_WIDTH || 
+                    missile.y < 0 || missile.y > WORLD_HEIGHT) {
+                    this.missiles.splice(i, 1);
+                }
             }
         }
     }
@@ -492,8 +596,8 @@ class SwarmerEnemy extends Enemy {
         for (let i = 0; i < 3; i++) {
             const spreadAngle = this.rotation + (Math.random() - 0.5) * Math.PI; // Random spread within 180 degrees
             const missile = {
-                x: this.x + Math.cos(spreadAngle) * this.width,
-                y: this.y + Math.sin(spreadAngle) * this.width,
+                x: this.x,
+                y: this.y,
                 width: 15,
                 height: 15,
                 velocityX: Math.cos(spreadAngle) * this.missileSpeed,
