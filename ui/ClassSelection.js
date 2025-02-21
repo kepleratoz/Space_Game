@@ -78,13 +78,13 @@ function handleClassSelectionClick(e) {
         const startX = canvas.width/2 - (Object.keys(SHIP_CLASSES).length * (shipWidth + spacing))/2;
         const startY = 200;
 
-        Object.keys(SHIP_CLASSES).forEach((className, index) => {
-            const x = startX + index * (shipWidth + spacing);
+        Object.entries(SHIP_CLASSES).forEach(([className, stats]) => {
+            const x = startX + Object.keys(SHIP_CLASSES).indexOf(className) * (shipWidth + spacing);
             const y = startY;
 
             if (e.clientX >= x && e.clientX <= x + shipWidth &&
                 e.clientY >= y && e.clientY <= y + shipHeight) {
-                if (isShipUnlocked(className)) {
+                if (isShipUnlocked(stats.name)) {
                     selectedShipClass = className;
                     selectedShipForAbilities = className;
                     showingAbilityUnlockScreen = true;
@@ -102,20 +102,20 @@ function handleClassSelectionClick(e) {
         const startX = canvas.width/2 - (Object.keys(SHIP_CLASSES).length * (shipWidth + spacing))/2;
         const startY = 200;
 
-        Object.keys(SHIP_CLASSES).forEach((className, index) => {
-            const x = startX + index * (shipWidth + spacing);
+        Object.entries(SHIP_CLASSES).forEach(([className, stats]) => {
+            const x = startX + Object.keys(SHIP_CLASSES).indexOf(className) * (shipWidth + spacing);
             const y = startY;
 
             if (e.clientX >= x && e.clientX <= x + shipWidth &&
                 e.clientY >= y && e.clientY <= y + shipHeight) {
-                if (isShipUnlocked(className)) {
+                if (isShipUnlocked(stats.name)) {
                     if (selectedClass) {
                         // If we have a selected archetype, preserve it
                         const archetype = selectedClass;
                         startGame(className, archetype);
                     } else {
                         selectedShipClass = className;
-                        selectedClass = SHIP_CLASSES[className];
+                        selectedClass = stats;
                         startGame(className);
                     }
                 }
@@ -383,7 +383,7 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
     const archetypeHeight = 200;
     const spacing = 50;
     const startX = canvas.width/2 - archetypeWidth - spacing/2;
-    const startY = 150; // Match the drawing position
+    const startY = 150;
 
     // Check base class click
     if (mouseX >= startX && mouseX <= startX + archetypeWidth &&
@@ -392,6 +392,7 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
         startGame(selectedShipForAbilities);
         showingAbilityUnlockScreen = false;
         selectedShipForAbilities = null;
+        showNotification('Starting game as Fighter!', 'success');
         return;
     }
 
@@ -402,10 +403,14 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
             mouseY >= startY && mouseY <= startY + archetypeHeight) {
             // Create archetype configuration
             const archetype = {
-                ...shipClass.archetypes.ASSAULT,
-                abilities: shipClass.abilities // Preserve abilities from base class
+                ...shipClass.archetypes.ASSAULT,  // Start with the base archetype properties
+                abilities: shipClass.abilities,  // Preserve abilities from base class
+                energyScaling: shipClass.energyScaling,  // Preserve energy scaling
+                healthRegen: shipClass.healthRegen || 0.08,  // Use base class health regen or default
+                maxShootCooldown: 10  // Faster shooting for Assault Fighter
             };
-            // Start game directly with archetype
+            
+            console.log('Starting game with assault archetype:', archetype);
             startGame(selectedShipForAbilities, archetype);
             showingAbilityUnlockScreen = false;
             selectedShipForAbilities = null;
@@ -510,30 +515,67 @@ window.addEventListener('mousedown', (e) => {
 
 // Add startGame function at the end of the file
 function startGame(className, archetype = null) {
-    // Use the archetype if provided, otherwise use stored selectedClass or base class
-    const baseClass = SHIP_CLASSES[className];
-    const shipConfig = archetype || selectedClass || baseClass;
+    // Convert className to uppercase to match SHIP_CLASSES keys
+    const classKey = className.toUpperCase();
+    
+    // Get the base class configuration
+    const baseClass = SHIP_CLASSES[classKey];
+    if (!baseClass) {
+        console.error('Invalid ship class:', className);
+        return;
+    }
+    
+    // Create the final ship configuration
+    let finalShipConfig;
+    if (archetype) {
+        finalShipConfig = {
+            ...baseClass,  // Start with all base class properties
+            ...archetype,  // Override with archetype properties
+            // Ensure critical properties are set
+            name: archetype.name || baseClass.name,
+            abilities: baseClass.abilities,
+            energyScaling: baseClass.energyScaling,
+            healthRegen: archetype.healthRegen || baseClass.healthRegen || 0.08,
+            rotationalAcceleration: archetype.rotationalAcceleration || baseClass.rotationalAcceleration,
+            shootCost: archetype.shootCost || baseClass.shootCost,
+            maxShootCooldown: archetype.maxShootCooldown || baseClass.maxShootCooldown,
+            color: archetype.color || baseClass.color,
+            // Add any missing properties
+            width: baseClass.width || 30,
+            height: baseClass.height || 30
+        };
+    } else {
+        finalShipConfig = { ...baseClass };
+    }
     
     // Log the ship configuration for debugging
-    console.log('Starting game with ship config:', shipConfig);
+    console.log('Starting game with ship config:', finalShipConfig);
     
-    // Reset game state
-    player = new Player({
-        ...baseClass, // Start with base class properties
-        ...shipConfig, // Override with archetype properties if provided
-        // Ensure we have the correct name
-        name: archetype ? 'Assault Fighter' : baseClass.name,
-        // Preserve abilities
-        abilities: baseClass.abilities
-    });
+    // Initialize game state
+    player = null; // Clear existing player first
     enemies = [];
     asteroids = [];
     healthPacks = [];
     gems = [];
+    enemyProjectiles = [];
     gameOver = false;
     score = 0;
     
-    // Reset camera
+    // Reset mouse state instead of reassigning
+    mouse.x = 0;
+    mouse.y = 0;
+    mouse.isDown = false;
+    mouse.rightDown = false;
+    mouse.middleDown = false;
+    
+    // Reset keys
+    Object.keys(keys).forEach(key => delete keys[key]);
+    
+    // Create new player with the configuration
+    player = new Player(finalShipConfig);
+    
+    // Initialize camera
+    camera.follow(player);
     camera.x = player.x - canvas.width / 2;
     camera.y = player.y - canvas.height / 2;
     
@@ -543,14 +585,18 @@ function startGame(className, archetype = null) {
     window.waveStartTime = Date.now();
     window.waveTimer = 0;
     
+    // Set game state AFTER initializing everything
     gameState = GAME_STATES.PLAYING;
     isPaused = false;
     
     // Increment games played when starting a new game
-    incrementGamesPlayed(shipConfig.name);
+    incrementGamesPlayed(finalShipConfig.name);
     
-    // Reset the stored archetype
+    // Reset selection state
     selectedClass = null;
+    selectedShipClass = null;
+    selectedShipForAbilities = null;
+    showingAbilityUnlockScreen = false;
 }
 
 // Make startGame globally available

@@ -11,7 +11,7 @@ class Player {
         this.shipClass = shipClass;
         this.upgradeLevel = 0;
         
-        // Apply ship class stats with smaller initial bonuses
+        // Apply ship class stats
         this.maxHealth = shipClass.health;
         this.health = this.maxHealth;
         this.maxSpeed = shipClass.maxSpeed;
@@ -20,25 +20,8 @@ class Player {
         this.shootCost = shipClass.shootCost;
         this.color = shipClass.color;
         
-        // Add health regeneration rates based on ship class
+        // Add health regeneration rates
         this.healthRegen = shipClass.healthRegen || 0.01;
-        switch(shipClass.name) {
-            case 'Tank':
-                this.healthRegen = 0.15; // Tank's regen
-                break;
-            case 'Fighter':
-                this.healthRegen = 0.08; // Fighter's regen
-                break;
-            case 'Speedster':
-                this.healthRegen = 0.03; // Speedster's regen
-                break;
-            case 'Sniper':
-                this.healthRegen = 0.02; // Sniper's regen
-                break;
-            case 'Rammer':
-                this.healthRegen = shipClass.healthRegen; // Use Rammer's defined regen rate
-                break;
-        }
         
         this.lasers = [];
         this.energy = shipClass.maxEnergy;
@@ -47,14 +30,14 @@ class Player {
         this.gems = 0;
         this.maxGems = UPGRADE_LEVELS.LEVEL1.gems;
         this.shootCooldown = 0;
-        this.maxShootCooldown = 15;
+        this.maxShootCooldown = shipClass.maxShootCooldown || 15;
         this.velocityX = 0;
         this.velocityY = 0;
         this.invulnerable = false;
         this.invulnerableTime = 0;
-        this.regularInvulnerabilityDuration = 8; // 0.13 seconds at 60 FPS for regular hits
-        this.ramInvulnerabilityDuration = 20; // 0.33 seconds at 60 FPS for ram hits
-        this.lastHitTime = 0; // Track the last time player was hit
+        this.regularInvulnerabilityDuration = 8;
+        this.ramInvulnerabilityDuration = 20;
+        this.lastHitTime = 0;
         this.mouseControls = true;
         this.damageMultiplier = 1;
 
@@ -207,8 +190,19 @@ class Player {
         
         ctx.fillStyle = this.invulnerable ? this.color + '88' : this.color;
         
+        // Check if this is the Assault Fighter archetype
+        if (this.shipClass.name === 'Assault Fighter') {
+            // Assault Fighter design - aggressive and compact
+            ctx.beginPath();
+            ctx.moveTo(this.width / 2, 0);
+            ctx.lineTo(-this.width / 4, this.height / 3);
+            ctx.lineTo(-this.width / 3, 0);
+            ctx.lineTo(-this.width / 4, -this.height / 3);
+            ctx.closePath();
+            ctx.fill();
+        }
         // Class-specific ship designs based on upgrade level
-        if (this.shipClass.name === 'Fighter') {
+        else if (this.shipClass.name === 'Fighter') {
             if (this.upgradeLevel === 0) {
                 // Basic fighter - sleek and pointed
                 ctx.beginPath();
@@ -1165,20 +1159,6 @@ class Player {
         
         let energyCost = this.shootCost;
         
-        if (this.shipClass.name === 'Rammer') {
-            // Left click performs a quick dash
-            if (this.energy >= energyCost && !this.isDashing) {
-                this.isDashing = true;
-                this.dashDuration = this.maxDashDuration;
-                const dashSpeed = this.upgradeLevel >= 1 ? 18 : 12;
-                this.velocityX = Math.cos(this.rotation) * dashSpeed;
-                this.velocityY = Math.sin(this.rotation) * dashSpeed;
-                this.energy -= energyCost;
-                this.shootCooldown = this.maxShootCooldown;
-            }
-            return;
-        }
-        
         // Get the correct rotation based on mode
         let shootRotation = this.rotation;
         if (this.shipClass.name === 'Sniper' && this.isViewportMode) {
@@ -1186,6 +1166,19 @@ class Player {
             const mouseWorldX = mouse.x + camera.x;
             const mouseWorldY = mouse.y + camera.y;
             shootRotation = Math.atan2(mouseWorldY - this.y, mouseWorldX - this.x);
+        }
+        
+        // Handle Assault Fighter shooting
+        if (this.shipClass.name === 'Assault Fighter') {
+            if (this.energy >= energyCost) {
+                // Create three lasers in a spread pattern
+                this.createLaser(this.rotation, 1);
+                this.createLaser(this.rotation - 0.1, 0.8);
+                this.createLaser(this.rotation + 0.1, 0.8);
+                this.energy -= energyCost;
+                this.shootCooldown = this.maxShootCooldown;
+            }
+            return;
         }
         
         // Class-specific shooting patterns with different energy costs
