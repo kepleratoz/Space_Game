@@ -21,7 +21,7 @@ class Player {
         this.color = shipClass.color;
         
         // Add health regeneration rates based on ship class
-        this.healthRegen = 0;
+        this.healthRegen = shipClass.healthRegen || 0.01;
         switch(shipClass.name) {
             case 'Tank':
                 this.healthRegen = 0.15; // Tank's regen
@@ -56,6 +56,7 @@ class Player {
         this.ramInvulnerabilityDuration = 20; // 0.33 seconds at 60 FPS for ram hits
         this.lastHitTime = 0; // Track the last time player was hit
         this.mouseControls = true;
+        this.damageMultiplier = 1;
 
         // Add ability system
         this.abilities = {
@@ -952,6 +953,7 @@ class Player {
                 case 'Sentry':
                     this.maxSpeed = this.shipClass.maxSpeed * 0.5;
                     this.energyRegen = this.shipClass.energyRegen * 1.5;
+                    this.damageMultiplier = 2;
                     break;
                 case 'Warp Drive':
                     // Effect handled in activation
@@ -961,6 +963,9 @@ class Player {
 
         if (this.abilities.ability2.active) {
             switch(this.abilities.ability2.name) {
+                case 'Boost':
+                    this.damageMultiplier = 1.75;
+                    break;
                 case 'Deathray':
                     this.rotationalAcceleration = this.shipClass.rotationalAcceleration * 0.5;
                     this.energyRegen = this.shipClass.energyRegen * 10;
@@ -1013,6 +1018,10 @@ class Player {
                             }
                         });
                     }
+                    break;
+                case 'Fortify':
+                    this.damageReduction = 0.45;
+                    this.contactDamageMultiplier = 2;
                     break;
             }
         }
@@ -1131,6 +1140,7 @@ class Player {
             case 'Sentry':
                 this.maxSpeed = this.shipClass.maxSpeed;
                 this.energyRegen = this.shipClass.energyRegen;
+                this.damageMultiplier = 1;
                 break;
             case 'Deathray':
                 this.rotationalAcceleration = this.shipClass.rotationalAcceleration;
@@ -1143,6 +1153,9 @@ class Player {
             case 'Fortify':
                 this.damageReduction = 0;
                 this.contactDamageMultiplier = 1;
+                break;
+            case 'Boost':
+                this.damageMultiplier = 1;
                 break;
         }
     }
@@ -1321,7 +1334,7 @@ class Player {
             height: 4 * sizeMultiplier,
             rotation: angle,
             color: this.upgradeLevel >= 2 ? this.color : '#ff0000',
-            damage: this.shipClass.name === 'Sniper' ? 25 * sizeMultiplier : 10 * sizeMultiplier
+            damage: (this.shipClass.name === 'Sniper' ? 25 * sizeMultiplier : 10 * sizeMultiplier) * this.damageMultiplier
         };
 
         // Apply ability damage modifiers

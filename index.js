@@ -145,10 +145,7 @@ function gameLoop() {
     damageNumbers.forEach(number => number.draw());
 
     // Draw UI elements
-    drawMinimap();
-    player.drawStatusBars();
-    drawDebugInfo();
-    drawPauseButton();
+    drawGameUI();
 
     // Draw FPS counter
     ctx.fillStyle = '#fff';

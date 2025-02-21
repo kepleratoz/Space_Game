@@ -32,7 +32,20 @@ const SHIP_CLASSES = {
         maxEnergy: 100,
         energyRegen: 1.3,
         color: '#42f554',
-        xpRequired: 0
+        xpRequired: 0,
+        archetypes: {
+            ASSAULT: {
+                name: 'Assault Fighter',
+                health: 25,
+                maxSpeed: 6,
+                acceleration: 0.6,
+                rotationalAcceleration: 0.015,
+                shootCost: 10,
+                maxEnergy: 50,
+                energyRegen: 1.3,
+                color: '#ff4242'
+            }
+        }
     },
     TANK: {
         name: 'Tank',

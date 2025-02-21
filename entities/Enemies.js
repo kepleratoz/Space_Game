@@ -143,11 +143,8 @@ class ShooterEnemy extends Enemy {
         ctx.fillRect(x, y - this.width/6, this.height/2, this.width/3);
     }
 
-    update() {
-        // Skip all updates if frozen
-        if (window.isFrozen) {
-            return this.health <= 0;
-        }
+    behavior() {
+        if (window.isFrozen) return;
 
         const distToPlayer = distance(this.x, this.y, player.x, player.y);
         const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
@@ -159,12 +156,16 @@ class ShooterEnemy extends Enemy {
 
             if (distToPlayer < targetDist - 50) {
                 // Too close, back away
-                this.x -= Math.cos(angleToPlayer) * moveSpeed;
-                this.y -= Math.sin(angleToPlayer) * moveSpeed;
+                this.velocityX = -Math.cos(angleToPlayer) * moveSpeed;
+                this.velocityY = -Math.sin(angleToPlayer) * moveSpeed;
             } else if (distToPlayer > targetDist + 50) {
                 // Too far, move closer
-                this.x += Math.cos(angleToPlayer) * moveSpeed;
-                this.y += Math.sin(angleToPlayer) * moveSpeed;
+                this.velocityX = Math.cos(angleToPlayer) * moveSpeed;
+                this.velocityY = Math.sin(angleToPlayer) * moveSpeed;
+            } else {
+                // At good range, slow down
+                this.velocityX *= 0.95;
+                this.velocityY *= 0.95;
             }
 
             // Update rotation to face player
@@ -183,8 +184,8 @@ class ShooterEnemy extends Enemy {
             }
 
             // Move in idle direction
-            this.x += Math.cos(this.idleAngle) * this.idleSpeed;
-            this.y += Math.sin(this.idleAngle) * this.idleSpeed;
+            this.velocityX = Math.cos(this.idleAngle) * this.idleSpeed;
+            this.velocityY = Math.sin(this.idleAngle) * this.idleSpeed;
             
             // Smoothly rotate towards movement direction
             const rotationDiff = this.idleAngle - this.rotation;
@@ -199,8 +200,6 @@ class ShooterEnemy extends Enemy {
         // Keep within world bounds
         this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
         this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
-
-        return this.health <= 0;
     }
 
     shoot() {

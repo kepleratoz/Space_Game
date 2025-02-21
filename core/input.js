@@ -86,6 +86,7 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && showingAbilityUnlockScreen) {
         showingAbilityUnlockScreen = false;
         selectedShipForAbilities = null;
+        // Keep the selected archetype configuration
         return;
     }
 
@@ -132,7 +133,14 @@ window.addEventListener('keydown', (e) => {
             case 'L':
                 player.health = player.maxHealth;
                 player.energy = player.maxEnergy;
-                showNotification('Health and Energy Restored');
+                // Reset ability cooldowns
+                if (player.abilities.ability1) {
+                    player.abilities.ability1.cooldown = 0;
+                }
+                if (player.abilities.ability2) {
+                    player.abilities.ability2.cooldown = 0;
+                }
+                showNotification('Health, Energy, and Ability Cooldowns Restored');
                 break;
             case ';':
                 isInvincible = !isInvincible;

@@ -103,28 +103,28 @@ function handleCollisions() {
             // Project vector onto ray direction to find closest point
             const dot = toCircleX * normalizedRayDirX + toCircleY * normalizedRayDirY;
             
-            // If behind ray origin, no hit possible
-            if (dot < 0) return;
-            
-            // Find closest point on ray to circle center
-            const closestX = rayOriginX + normalizedRayDirX * dot;
-            const closestY = rayOriginY + normalizedRayDirY * dot;
-            
-            // Distance from closest point to circle center
-            const distX = closestX - enemy.x;
-            const distY = closestY - enemy.y;
-            const distSquared = distX * distX + distY * distY;
-            
-            // Check if ray hits circle
-            if (distSquared <= (enemy.width/2) * (enemy.width/2)) {
-                // Calculate actual intersection point
-                const distToIntersection = dot - Math.sqrt((enemy.width/2) * (enemy.width/2) - distSquared);
+            // Only process hits in front of the ray origin
+            if (dot >= 0) {
+                // Find closest point on ray to circle center
+                const closestX = rayOriginX + normalizedRayDirX * dot;
+                const closestY = rayOriginY + normalizedRayDirY * dot;
                 
-                // Check if this is the closest hit so far
-                if (distToIntersection < closestHit && distToIntersection <= rayLength) {
-                    closestHit = distToIntersection;
-                    hitEnemy = enemy;
-                    hitEnemyIndex = enemyIndex;
+                // Distance from closest point to circle center
+                const distX = closestX - enemy.x;
+                const distY = closestY - enemy.y;
+                const distSquared = distX * distX + distY * distY;
+                
+                // Check if ray hits circle
+                if (distSquared <= (enemy.width/2) * (enemy.width/2)) {
+                    // Calculate actual intersection point
+                    const distToIntersection = dot - Math.sqrt((enemy.width/2) * (enemy.width/2) - distSquared);
+                    
+                    // Check if this is the closest hit so far
+                    if (distToIntersection < closestHit && distToIntersection <= rayLength) {
+                        closestHit = distToIntersection;
+                        hitEnemy = enemy;
+                        hitEnemyIndex = enemyIndex;
+                    }
                 }
             }
         });

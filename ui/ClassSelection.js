@@ -64,34 +64,64 @@ function drawClassSelection() {
 }
 
 function handleClassSelectionClick(e) {
+    // Check ability unlock screen first
     if (showingAbilityUnlockScreen) {
         handleAbilityUnlockClick(e.clientX, e.clientY);
         return;
     }
 
-    const shipWidth = 200;
-    const shipHeight = 200;
-    const spacing = 50;
-    const startX = canvas.width/2 - (Object.keys(SHIP_CLASSES).length * (shipWidth + spacing))/2;
-    const startY = 200;
+    // Handle right-click for abilities
+    if (e.button === 2) {
+        const shipWidth = 200;
+        const shipHeight = 200;
+        const spacing = 50;
+        const startX = canvas.width/2 - (Object.keys(SHIP_CLASSES).length * (shipWidth + spacing))/2;
+        const startY = 200;
 
-    Object.keys(SHIP_CLASSES).forEach((className, index) => {
-        const x = startX + index * (shipWidth + spacing);
-        const y = startY;
+        Object.keys(SHIP_CLASSES).forEach((className, index) => {
+            const x = startX + index * (shipWidth + spacing);
+            const y = startY;
 
-        if (e.clientX >= x && e.clientX <= x + shipWidth &&
-            e.clientY >= y && e.clientY <= y + shipHeight) {
-            if (isShipUnlocked(className)) {
-                selectedShipClass = className;
-                if (e.button === 2) { // Right click
+            if (e.clientX >= x && e.clientX <= x + shipWidth &&
+                e.clientY >= y && e.clientY <= y + shipHeight) {
+                if (isShipUnlocked(className)) {
+                    selectedShipClass = className;
                     selectedShipForAbilities = className;
                     showingAbilityUnlockScreen = true;
-                } else {
-                    startGame(className);
                 }
             }
-        }
-    });
+        });
+        return;
+    }
+
+    // Handle left-click for ship selection
+    if (e.button === 0) {
+        const shipWidth = 200;
+        const shipHeight = 200;
+        const spacing = 50;
+        const startX = canvas.width/2 - (Object.keys(SHIP_CLASSES).length * (shipWidth + spacing))/2;
+        const startY = 200;
+
+        Object.keys(SHIP_CLASSES).forEach((className, index) => {
+            const x = startX + index * (shipWidth + spacing);
+            const y = startY;
+
+            if (e.clientX >= x && e.clientX <= x + shipWidth &&
+                e.clientY >= y && e.clientY <= y + shipHeight) {
+                if (isShipUnlocked(className)) {
+                    if (selectedClass) {
+                        // If we have a selected archetype, preserve it
+                        const archetype = selectedClass;
+                        startGame(className, archetype);
+                    } else {
+                        selectedShipClass = className;
+                        selectedClass = SHIP_CLASSES[className];
+                        startGame(className);
+                    }
+                }
+            }
+        });
+    }
 }
 
 function drawAbilityUnlockScreen() {
@@ -103,27 +133,71 @@ function drawAbilityUnlockScreen() {
     ctx.fillStyle = '#fff';
     ctx.font = '32px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(`${SHIP_CLASSES[selectedShipForAbilities].name} Abilities`, canvas.width/2, 100);
+    ctx.fillText(`${SHIP_CLASSES[selectedShipForAbilities].name} Archetypes and Abilities`, canvas.width/2, 100);
 
-    // Draw current XP
+    const shipClass = SHIP_CLASSES[selectedShipForAbilities];
+    
+    // Draw base ship
+    const archetypeWidth = 200;
+    const archetypeHeight = 200;
+    const spacing = 50;
+    const startX = canvas.width/2 - archetypeWidth - spacing/2;
+    const startY = 150; // Move archetypes up
+
+    // Draw "Archetypes" section title
+    ctx.fillStyle = '#3498db';
     ctx.font = '24px Arial';
-    ctx.fillStyle = '#ffd700';
-    ctx.fillText(`XP: ${getXP()}`, canvas.width/2, 150);
+    ctx.fillText('Archetypes', canvas.width/2, startY - 10);
 
+    // Draw base ship card
+    drawArchetypeCard(shipClass, startX, startY, archetypeWidth, archetypeHeight, true);
+
+    // Draw arrow
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(startX + archetypeWidth + 10, startY + archetypeHeight/2);
+    ctx.lineTo(startX + archetypeWidth + spacing - 10, startY + archetypeHeight/2);
+    ctx.stroke();
+    
+    // Draw arrowhead
+    ctx.beginPath();
+    ctx.moveTo(startX + archetypeWidth + spacing - 5, startY + archetypeHeight/2);
+    ctx.lineTo(startX + archetypeWidth + spacing - 15, startY + archetypeHeight/2 - 5);
+    ctx.lineTo(startX + archetypeWidth + spacing - 15, startY + archetypeHeight/2 + 5);
+    ctx.closePath();
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+
+    // Draw assault archetype if it exists
+    if (shipClass.archetypes && shipClass.archetypes.ASSAULT) {
+        drawArchetypeCard(
+            shipClass.archetypes.ASSAULT,
+            startX + archetypeWidth + spacing,
+            startY,
+            archetypeWidth,
+            archetypeHeight,
+            false
+        );
+    }
+
+    // Draw "Abilities" section title
+    ctx.fillStyle = '#3498db';
+    ctx.font = '24px Arial';
+    ctx.fillText('Abilities', canvas.width/2, startY + archetypeHeight + 40);
+
+    // Draw abilities section
+    const shipAbilities = new Player(SHIP_CLASSES[selectedShipForAbilities]).abilities;
     const abilityWidth = 300;
     const abilityHeight = 150;
-    const spacing = 50;
-    const startX = canvas.width/2 - abilityWidth - spacing/2;
-    const startY = 200;
-
-    // Get abilities for selected ship
-    const shipAbilities = new Player(SHIP_CLASSES[selectedShipForAbilities]).abilities;
+    const abilityStartX = canvas.width/2 - abilityWidth - spacing/2;
+    const abilityStartY = startY + archetypeHeight + 60;
 
     // Draw ability 1
     drawAbilityCard(
         shipAbilities.ability1,
-        startX,
-        startY,
+        abilityStartX,
+        abilityStartY,
         abilityWidth,
         abilityHeight,
         false // isAbility2 = false
@@ -132,8 +206,8 @@ function drawAbilityUnlockScreen() {
     // Draw ability 2
     drawAbilityCard(
         shipAbilities.ability2,
-        startX + abilityWidth + spacing,
-        startY,
+        abilityStartX + abilityWidth + spacing,
+        abilityStartY,
         abilityWidth,
         abilityHeight,
         true // isAbility2 = true
@@ -157,6 +231,41 @@ function drawAbilityUnlockScreen() {
     ctx.fillStyle = '#fff';
     ctx.font = '20px Arial';
     ctx.fillText('Close', canvas.width/2, closeBtn.y + 28);
+}
+
+function drawArchetypeCard(ship, x, y, width, height, isBase = false) {
+    // Card background
+    ctx.fillStyle = '#2c3e50';
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, 8);
+    ctx.fill();
+
+    // Draw ship preview (triangle shape)
+    ctx.fillStyle = ship.color;
+    ctx.beginPath();
+    ctx.moveTo(x + width/2 + 30, y + height/2);
+    ctx.lineTo(x + width/2 - 30, y + height/2 + 20);
+    ctx.lineTo(x + width/2 - 30, y + height/2 - 20);
+    ctx.closePath();
+    ctx.fill();
+
+    // Ship name
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(ship.name, x + width/2, y + 40);
+
+    // Stats
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#bdc3c7';
+    ctx.fillText(`Health: ${ship.health}`, x + width/2, y + height - 80);
+    ctx.fillText(`Speed: ${ship.maxSpeed}`, x + width/2, y + height - 60);
+    ctx.fillText(`Energy: ${ship.maxEnergy}`, x + width/2, y + height - 40);
+
+    // Selection text
+    ctx.fillStyle = '#3498db';
+    ctx.font = '14px Arial';
+    ctx.fillText(isBase ? 'Current' : 'Click to select', x + width/2, y + height - 10);
 }
 
 function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
@@ -252,6 +361,8 @@ function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
 }
 
 function handleAbilityUnlockClick(mouseX, mouseY) {
+    const shipClass = SHIP_CLASSES[selectedShipForAbilities];
+    
     // Check close button
     const closeBtn = {
         x: canvas.width/2 - 100,
@@ -267,18 +378,56 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
         return;
     }
 
-    const shipAbilities = new Player(SHIP_CLASSES[selectedShipForAbilities]).abilities;
+    // Check archetype clicks
+    const archetypeWidth = 200;
+    const archetypeHeight = 200;
+    const spacing = 50;
+    const startX = canvas.width/2 - archetypeWidth - spacing/2;
+    const startY = 150; // Match the drawing position
+
+    // Check base class click
+    if (mouseX >= startX && mouseX <= startX + archetypeWidth &&
+        mouseY >= startY && mouseY <= startY + archetypeHeight) {
+        // Start game directly with base class
+        startGame(selectedShipForAbilities);
+        showingAbilityUnlockScreen = false;
+        selectedShipForAbilities = null;
+        return;
+    }
+
+    // Check assault archetype click
+    if (shipClass.archetypes && shipClass.archetypes.ASSAULT) {
+        const assaultX = startX + archetypeWidth + spacing;
+        if (mouseX >= assaultX && mouseX <= assaultX + archetypeWidth &&
+            mouseY >= startY && mouseY <= startY + archetypeHeight) {
+            // Create archetype configuration
+            const archetype = {
+                ...shipClass.archetypes.ASSAULT,
+                abilities: shipClass.abilities // Preserve abilities from base class
+            };
+            // Start game directly with archetype
+            startGame(selectedShipForAbilities, archetype);
+            showingAbilityUnlockScreen = false;
+            selectedShipForAbilities = null;
+            showNotification('Starting game as Assault Fighter!', 'success');
+            return;
+        }
+    }
+
+    // Check ability unlock buttons
     const abilityWidth = 300;
     const abilityHeight = 150;
-    const spacing = 50;
-    const startX = canvas.width/2 - abilityWidth - spacing/2;
-    const startY = 200;
+    const abilityStartX = canvas.width/2 - abilityWidth - spacing/2;
+    const abilityStartY = startY + archetypeHeight + 60;
+
+    // Get ship abilities
+    const shipAbilities = new Player(SHIP_CLASSES[selectedShipForAbilities]).abilities;
 
     // Check ability 1 unlock button
     if (!isAbilityUnlocked(selectedShipForAbilities, shipAbilities.ability1.name)) {
         const btn1 = {
-            x: startX + abilityWidth/2 - 100,
-            y: startY + abilityHeight - 60,
+            x: abilityStartX + abilityWidth/2 - 100,
+            y: abilityStartY + abilityHeight - 60,
             width: 200,
             height: 40
         };
@@ -293,8 +442,8 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
     // Check ability 2 unlock button
     if (!isAbilityUnlocked(selectedShipForAbilities, shipAbilities.ability2.name)) {
         const btn2 = {
-            x: startX + abilityWidth + spacing + abilityWidth/2 - 100,
-            y: startY + abilityHeight - 60,
+            x: abilityStartX + abilityWidth + spacing + abilityWidth/2 - 100,
+            y: abilityStartY + abilityHeight - 60,
             width: 200,
             height: 40
         };
@@ -329,8 +478,7 @@ function tryUnlockAbility(ability, isAbility2 = false) {
 window.drawClassSelection = drawClassSelection;
 window.drawAbilityUnlockScreen = drawAbilityUnlockScreen;
 window.handleAbilityUnlockClick = handleAbilityUnlockClick;
-window.drawAbilityCard = drawAbilityCard;
-window.tryUnlockAbility = tryUnlockAbility;
+window.drawArchetypeCard = drawArchetypeCard;
 
 // Update the click handler in input.js to use the correct case
 window.addEventListener('mousedown', (e) => {
@@ -358,4 +506,52 @@ window.addEventListener('mousedown', (e) => {
             });
         }
     }
-}); 
+});
+
+// Add startGame function at the end of the file
+function startGame(className, archetype = null) {
+    // Use the archetype if provided, otherwise use stored selectedClass or base class
+    const baseClass = SHIP_CLASSES[className];
+    const shipConfig = archetype || selectedClass || baseClass;
+    
+    // Log the ship configuration for debugging
+    console.log('Starting game with ship config:', shipConfig);
+    
+    // Reset game state
+    player = new Player({
+        ...baseClass, // Start with base class properties
+        ...shipConfig, // Override with archetype properties if provided
+        // Ensure we have the correct name
+        name: archetype ? 'Assault Fighter' : baseClass.name,
+        // Preserve abilities
+        abilities: baseClass.abilities
+    });
+    enemies = [];
+    asteroids = [];
+    healthPacks = [];
+    gems = [];
+    gameOver = false;
+    score = 0;
+    
+    // Reset camera
+    camera.x = player.x - canvas.width / 2;
+    camera.y = player.y - canvas.height / 2;
+    
+    // Initialize wave system
+    window.waveNumber = 1;
+    window.enemiesRemainingInWave = Math.min(5 + window.waveNumber * 2, 25);
+    window.waveStartTime = Date.now();
+    window.waveTimer = 0;
+    
+    gameState = GAME_STATES.PLAYING;
+    isPaused = false;
+    
+    // Increment games played when starting a new game
+    incrementGamesPlayed(shipConfig.name);
+    
+    // Reset the stored archetype
+    selectedClass = null;
+}
+
+// Make startGame globally available
+window.startGame = startGame; 

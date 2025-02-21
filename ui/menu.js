@@ -86,21 +86,53 @@ function drawPauseScreen() {
 }
 
 function showNotification(message, type = 'success') {
+    // Get or create notifications container
+    let container = document.getElementById('notifications-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notifications-container';
+        container.style.position = 'fixed';
+        container.style.bottom = '20px';
+        container.style.right = '20px';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '10px';
+        container.style.zIndex = '1000';
+        document.body.appendChild(container);
+    }
+
     const notification = document.createElement('div');
-    notification.style.position = 'fixed';
-    notification.style.top = '20px';
-    notification.style.left = '50%';
-    notification.style.transform = 'translateX(-50%)';
     notification.style.backgroundColor = type === 'success' ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 165, 0, 0.8)';
     notification.style.padding = '10px 20px';
     notification.style.borderRadius = '5px';
     notification.style.color = 'white';
     notification.style.fontFamily = 'Arial';
-    notification.style.zIndex = '1000';
+    notification.style.transition = 'all 0.3s ease-in-out';
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateY(20px)';
     notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => notification.remove(), 2000);
+
+    // Add to container at the top
+    container.insertBefore(notification, container.firstChild);
+
+    // Trigger animation to slide in and fade in
+    requestAnimationFrame(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateY(0)';
+    });
+
+    // Start fade out and slide down after 4.5 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateY(20px)';
+        
+        // Remove from DOM after animation completes
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 300);
+    }, 4700);
 }
 
 function drawGameOver() {
@@ -261,4 +293,46 @@ function drawSettingsMenu() {
     ctx.fillStyle = '#fff';
     ctx.font = '24px Arial';
     ctx.fillText('Back', canvas.width/2, backBtn.y + 32);
+}
+
+function drawShipClassDisplay() {
+    if (!player || gameState !== GAME_STATES.PLAYING) return;
+
+    const margin = 10;
+    const padding = 10;
+    const boxWidth = 150;
+    const boxHeight = 60;
+    const x = margin;
+    const y = canvas.height - boxHeight - margin;
+
+    // Draw background box
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, boxWidth, boxHeight, 8);
+    ctx.fill();
+
+    // Draw ship class name
+    ctx.fillStyle = player.shipClass.color || '#fff';
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(player.shipClass.name, x + padding, y + padding + 20);
+
+    // Draw archetype if it's an archetype
+    if (player.shipClass.name.includes('Assault')) {
+        ctx.fillStyle = '#aaa';
+        ctx.font = '16px Arial';
+        ctx.fillText('Archetype: Assault', x + padding, y + padding + 45);
+    } else {
+        ctx.fillStyle = '#aaa';
+        ctx.font = '16px Arial';
+        ctx.fillText('Base Class', x + padding, y + padding + 45);
+    }
+}
+
+function drawGameUI() {
+    drawMinimap();
+    player.drawStatusBars();
+    drawDebugInfo();
+    drawPauseButton();
+    drawShipClassDisplay();
 }
