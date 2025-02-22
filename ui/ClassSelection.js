@@ -407,7 +407,9 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
                 abilities: shipClass.abilities,  // Preserve abilities from base class
                 energyScaling: shipClass.energyScaling,  // Preserve energy scaling
                 healthRegen: shipClass.healthRegen || 0.08,  // Use base class health regen or default
-                maxShootCooldown: 10  // Faster shooting for Assault Fighter
+                maxShootCooldown: 10,  // Faster shooting for Assault Fighter
+                health: 50,  // Increased base health from 25 to 50
+                shootCost: shipClass.shootCost * 2  // Double energy consumption
             };
             
             console.log('Starting game with assault archetype:', archetype);

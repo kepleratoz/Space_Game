@@ -1171,10 +1171,32 @@ class Player {
         // Handle Assault Fighter shooting
         if (this.shipClass.name === 'Assault Fighter') {
             if (this.energy >= energyCost) {
-                // Create three lasers in a spread pattern
-                this.createLaser(this.rotation, 1);
-                this.createLaser(this.rotation - 0.1, 0.8);
-                this.createLaser(this.rotation + 0.1, 0.8);
+                switch(this.upgradeLevel) {
+                    case 0: // Level 1 - Base pattern
+                        this.createLaser(this.rotation, 1);
+                        this.createLaser(this.rotation - 0.1, 0.8);
+                        this.createLaser(this.rotation + 0.1, 0.8);
+                        break;
+                    case 1: // Level 2 - Two piercing lasers
+                        this.createLaser(this.rotation - 0.05, 1, 1, this.x, this.y, 12, 2);
+                        this.createLaser(this.rotation + 0.05, 1, 1, this.x, this.y, 12, 2);
+                        break;
+                    case 2: // Level 3 - One big laser and two small piercing lasers
+                        this.createLaser(this.rotation, 1.5, 1, this.x, this.y, 23, 1); // Big central laser
+                        this.createLaser(this.rotation - 0.15, 0.8, 1, this.x, this.y, 8, 3); // Small piercing lasers
+                        this.createLaser(this.rotation + 0.15, 0.8, 1, this.x, this.y, 8, 3);
+                        break;
+                    case 3: // Level 4 - Five piercing bullets in spread pattern
+                    case 4:
+                        // Center three bullets (20 damage)
+                        this.createLaser(this.rotation, 1.2, 1, this.x, this.y, 20, 2);
+                        this.createLaser(this.rotation - 0.1, 1.2, 1, this.x, this.y, 20, 2);
+                        this.createLaser(this.rotation + 0.1, 1.2, 1, this.x, this.y, 20, 2);
+                        // Side bullets (6 damage)
+                        this.createLaser(this.rotation - 0.2, 1, 1, this.x, this.y, 6, 2);
+                        this.createLaser(this.rotation + 0.2, 1, 1, this.x, this.y, 6, 2);
+                        break;
+                }
                 this.energy -= energyCost;
                 this.shootCooldown = this.maxShootCooldown;
             }
@@ -1317,7 +1339,7 @@ class Player {
         }
     }
 
-    createLaser(angle, sizeMultiplier = 1, speedMultiplier = 1, startX = this.x, startY = this.y) {
+    createLaser(angle, sizeMultiplier = 1, speedMultiplier = 1, startX = this.x, startY = this.y, customDamage = null, pierceCount = 0) {
         const laser = {
             x: startX,
             y: startY,
@@ -1327,7 +1349,9 @@ class Player {
             height: 4 * sizeMultiplier,
             rotation: angle,
             color: this.upgradeLevel >= 2 ? this.color : '#ff0000',
-            damage: (this.shipClass.name === 'Sniper' ? 25 * sizeMultiplier : 10 * sizeMultiplier) * this.damageMultiplier
+            damage: customDamage !== null ? customDamage : (this.shipClass.name === 'Sniper' ? 25 * sizeMultiplier : 10 * sizeMultiplier) * this.damageMultiplier,
+            pierceCount: pierceCount,
+            maxPierceCount: pierceCount
         };
 
         // Apply ability damage modifiers

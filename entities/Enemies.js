@@ -67,6 +67,7 @@ class Enemy {
 
     takeDamage(amount, isRam = false) {
         const currentTime = Date.now();
+        const oldHealth = this.health;
 
         if (isRam) {
             // For ram damage, check if enough time has passed since last ram
@@ -75,9 +76,10 @@ class Enemy {
             }
             this.lastRamTime = currentTime;
         } else {
-            // For regular damage, check if enough time has passed since last hit
-            if (currentTime - this.lastHitTime < 100) { // 100ms minimum between regular hits
-                return; // Skip damage if hit too recently
+            // For regular damage, only apply cooldown if not invulnerable
+            // This allows multiple hits from the same volley
+            if (!this.invulnerable && currentTime - this.lastHitTime < 100) { // 100ms minimum between regular hits
+                return; // Skip damage if hit too recently and not already invulnerable
             }
             this.lastHitTime = currentTime;
         }
@@ -86,6 +88,12 @@ class Enemy {
             this.health -= amount;
             this.invulnerable = true;
             this.invulnerableTime = isRam ? this.ramInvulnerabilityDuration : this.regularInvulnerabilityDuration;
+            
+            // Create damage number if damage was actually dealt
+            const actualDamage = oldHealth - this.health;
+            if (actualDamage > 0) {
+                damageNumbers.push(new DamageNumber(this.x, this.y, actualDamage, isRam ? '#ff4242' : '#ff0000'));
+            }
         }
     }
 }

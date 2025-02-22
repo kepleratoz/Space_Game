@@ -64,12 +64,7 @@ function handleCollisions() {
                 
                 // Damage based on impact speed
                 const damage = Math.min(30, Math.max(10, impactSpeed * 5));
-                const oldHealth = enemy.health;
                 enemy.takeDamage(damage, true);
-                const actualDamage = oldHealth - enemy.health;
-                if (actualDamage > 0) {
-                    damageNumbers.push(new DamageNumber(enemy.x, enemy.y, actualDamage));
-                }
             }
         });
     });
@@ -89,12 +84,12 @@ function handleCollisions() {
         const normalizedRayDirX = rayDirX / rayLength;
         const normalizedRayDirY = rayDirY / rayLength;
         
+        // Track if we should remove the laser
+        let shouldRemoveLaser = false;
+        
         // Check enemies with ray tracing
         let hitSomething = false;
-        let closestHit = Infinity;
-        let hitEnemy = null;
-        let hitEnemyIndex = -1;
-
+        
         enemies.forEach((enemy, enemyIndex) => {
             // Vector from ray origin to circle center
             const toCircleX = enemy.x - rayOriginX;
@@ -104,7 +99,7 @@ function handleCollisions() {
             const dot = toCircleX * normalizedRayDirX + toCircleY * normalizedRayDirY;
             
             // Only process hits in front of the ray origin
-            if (dot >= 0) {
+            if (dot >= 0 && dot <= rayLength) {
                 // Find closest point on ray to circle center
                 const closestX = rayOriginX + normalizedRayDirX * dot;
                 const closestY = rayOriginY + normalizedRayDirY * dot;
@@ -116,42 +111,41 @@ function handleCollisions() {
                 
                 // Check if ray hits circle
                 if (distSquared <= (enemy.width/2) * (enemy.width/2)) {
-                    // Calculate actual intersection point
-                    const distToIntersection = dot - Math.sqrt((enemy.width/2) * (enemy.width/2) - distSquared);
+                    hitSomething = true;
                     
-                    // Check if this is the closest hit so far
-                    if (distToIntersection < closestHit && distToIntersection <= rayLength) {
-                        closestHit = distToIntersection;
-                        hitEnemy = enemy;
-                        hitEnemyIndex = enemyIndex;
+                    // Store enemy's health before damage
+                    const oldHealth = enemy.health;
+                    
+                    // Apply damage from this laser
+                    enemy.takeDamage(laser.damage);
+                    
+                    // Calculate actual damage done by this specific laser
+                    const actualDamage = oldHealth - enemy.health;
+                    
+                    // Always create a damage number for non-zero damage
+                    if (actualDamage > 0) {
+                        // Add slight random offset to prevent overlap
+                        const offsetX = (Math.random() - 0.5) * 20;
+                        const offsetY = (Math.random() - 0.5) * 20;
+                        damageNumbers.push(new DamageNumber(enemy.x + offsetX, enemy.y + offsetY, actualDamage));
+                        
+                        if (laser.pierceCount > 0) {
+                            laser.pierceCount--;
+                        }
+                        
+                        if (enemy.health <= 0) {
+                            // Drop gems when enemy is destroyed
+                            const gemCount = Math.floor(Math.random() * 3) + 1;
+                            for (let i = 0; i < gemCount; i++) {
+                                gems.push(new Gem(enemy.x, enemy.y, 10));
+                            }
+                            enemies.splice(enemyIndex, 1);
+                            score += 100;
+                        }
                     }
                 }
             }
         });
-
-        // Handle the closest hit
-        if (hitEnemy) {
-            hitSomething = true;
-            const oldHealth = hitEnemy.health;
-            hitEnemy.takeDamage(laser.damage);
-            const actualDamage = oldHealth - hitEnemy.health;
-            if (actualDamage > 0) {
-                damageNumbers.push(new DamageNumber(hitEnemy.x, hitEnemy.y, actualDamage));
-            }
-            if (hitEnemy.health <= 0) {
-                // Drop gems when enemy is destroyed
-                const gemCount = Math.floor(Math.random() * 3) + 1;
-                for (let i = 0; i < gemCount; i++) {
-                    gems.push(new Gem(hitEnemy.x, hitEnemy.y, 10));
-                }
-                enemies.splice(hitEnemyIndex, 1);
-                score += 100;
-            }
-            
-            // Set laser position to hit point for visual feedback
-            laser.x = rayOriginX + normalizedRayDirX * closestHit;
-            laser.y = rayOriginY + normalizedRayDirY * closestHit;
-        }
 
         // Check asteroids with ray tracing
         asteroids.forEach((asteroid, asteroidIndex) => {
@@ -163,7 +157,7 @@ function handleCollisions() {
             const dot = toCircleX * normalizedRayDirX + toCircleY * normalizedRayDirY;
             
             // If behind ray origin, no hit possible
-            if (dot < 0) return;
+            if (dot < 0 || dot > rayLength) return;
             
             // Find closest point on ray to circle center
             const closestX = rayOriginX + normalizedRayDirX * dot;
@@ -176,13 +170,17 @@ function handleCollisions() {
             
             // Check if ray hits circle
             if (distSquared <= (asteroid.width/2) * (asteroid.width/2)) {
-                // Calculate actual intersection point
-                const distToIntersection = dot - Math.sqrt((asteroid.width/2) * (asteroid.width/2) - distSquared);
+                const oldHealth = asteroid.health;
+                asteroid.takeDamage(laser.damage);
+                const actualDamage = oldHealth - asteroid.health;
                 
-                // Check if this is a valid hit
-                if (distToIntersection <= rayLength) {
-                    hitSomething = true;
-                    asteroid.health -= laser.damage;
+                if (actualDamage > 0) {
+                    if (laser.pierceCount > 0) {
+                        laser.pierceCount--;
+                    } else {
+                        shouldRemoveLaser = true;
+                    }
+                    
                     if (asteroid.health <= 0) {
                         // Drop gems when asteroid is destroyed
                         const gemCount = Math.floor(Math.random() * 2) + 1;
@@ -192,16 +190,14 @@ function handleCollisions() {
                         asteroids.splice(asteroidIndex, 1);
                         score += 50;
                     }
-                    
-                    // Set laser position to hit point for visual feedback
-                    laser.x = rayOriginX + normalizedRayDirX * distToIntersection;
-                    laser.y = rayOriginY + normalizedRayDirY * distToIntersection;
                 }
             }
         });
 
-        // Remove laser if it hit something
-        if (hitSomething) {
+        // Remove laser only if it hit something and has no pierces left, or if it's off screen
+        if ((hitSomething && laser.pierceCount <= 0) || 
+            laser.x < 0 || laser.x > WORLD_WIDTH || 
+            laser.y < 0 || laser.y > WORLD_HEIGHT) {
             player.lasers.splice(laserIndex, 1);
         }
     });
