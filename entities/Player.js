@@ -1248,8 +1248,13 @@ class Player {
                 case 1: // Dual shots
                     energyCost *= 1.5;
                     if (this.energy >= energyCost) {
-                        this.createLaser(this.rotation - 0.1, 1);
-                        this.createLaser(this.rotation + 0.1, 1);
+                        // Fire parallel lasers by offsetting position instead of angle
+                        const offsetDistance = 8;
+                        const perpX = Math.cos(this.rotation + Math.PI/2) * offsetDistance;
+                        const perpY = Math.sin(this.rotation + Math.PI/2) * offsetDistance;
+                        // Both lasers deal the same damage
+                        this.createLaser(this.rotation, 1, 1, this.x - perpX, this.y - perpY, 10);
+                        this.createLaser(this.rotation, 1, 1, this.x + perpX, this.y + perpY, 10);
                     }
                     break;
                 case 2: // Triple shots

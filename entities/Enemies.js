@@ -14,8 +14,7 @@ class Enemy {
         this.ramInvulnerabilityDuration = 20; // Reduced from 45 to 20 (0.33 seconds at 60 FPS)
         this.lastRamTime = 0; // Track the last time this enemy was rammed
         this.isRamDamage = false; // Flag to track if damage is from ramming
-        this.regularInvulnerabilityDuration = 8; // 0.13 seconds at 60 FPS for regular hits
-        this.lastHitTime = 0; // Track the last time this enemy was hit by any damage
+        this.type = 'Enemy'; // Add base type
     }
 
     draw() {
@@ -34,10 +33,49 @@ class Enemy {
         ctx.fillStyle = this.color;
         this.drawShape(0, 0);
         ctx.restore();
+
+        // Check if mouse is hovering over this enemy
+        if (Math.abs(mouse.x - screenX) < this.width/2 && 
+            Math.abs(mouse.y - screenY) < this.height/2) {
+            this.drawTooltip(screenX, screenY);
+        }
     }
 
     drawShape(x, y) {
         ctx.fillRect(x - this.width/2, y - this.height/2, this.width, this.height);
+    }
+
+    drawTooltip(screenX, screenY) {
+        // Set up tooltip text
+        const tooltipText = `${this.type} - Health: ${Math.ceil(this.health)}`;
+        
+        // Configure tooltip style
+        ctx.font = '14px Arial';
+        const textMetrics = ctx.measureText(tooltipText);
+        const padding = 5;
+        const tooltipWidth = textMetrics.width + padding * 2;
+        const tooltipHeight = 20 + padding * 2;
+        
+        // Position tooltip above enemy
+        const tooltipX = screenX - tooltipWidth/2;
+        const tooltipY = screenY - this.height/2 - tooltipHeight - 5;
+        
+        // Draw tooltip background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.beginPath();
+        ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 5);
+        ctx.fill();
+        
+        // Draw tooltip border
+        ctx.strokeStyle = '#95a5a6';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Draw tooltip text
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tooltipText, screenX, tooltipY + tooltipHeight/2);
     }
 
     update() {
@@ -67,32 +105,30 @@ class Enemy {
 
     takeDamage(amount, isRam = false) {
         const currentTime = Date.now();
-        const oldHealth = this.health;
 
         if (isRam) {
-            // For ram damage, check if enough time has passed since last ram
-            if (currentTime - this.lastRamTime < 250) { // 250ms minimum between ram hits
-                return; // Skip damage if hit too recently
+            // For ram/collision damage, check invulnerability and cooldown
+            if (this.invulnerable || currentTime - this.lastRamTime < 250) {
+                return; // Skip damage if invulnerable or hit too recently by ram
             }
+            // Apply ram damage and set invulnerability
             this.lastRamTime = currentTime;
-            this.lastHitTime = currentTime;
+            this.invulnerable = true;
+            this.invulnerableTime = this.ramInvulnerabilityDuration;
+            this.health -= amount;
+            
+            // Create damage number for ram damage
+            const offsetX = (Math.random() - 0.5) * 20;
+            const offsetY = (Math.random() - 0.5) * 20;
+            damageNumbers.push(new DamageNumber(this.x + offsetX, this.y + offsetY, amount, '#ff4242'));
         } else {
-            // For regular damage, always enforce a minimum time between hits
-            if (currentTime - this.lastHitTime < 100) { // 100ms minimum between regular hits
-                return; // Skip damage if hit too recently
-            }
-            this.lastHitTime = currentTime;
-        }
-
-        // Apply damage and set invulnerability
-        this.health -= amount;
-        this.invulnerable = true;
-        this.invulnerableTime = isRam ? this.ramInvulnerabilityDuration : this.regularInvulnerabilityDuration;
-        
-        // Create damage number if damage was actually dealt
-        const actualDamage = oldHealth - this.health;
-        if (actualDamage > 0) {
-            damageNumbers.push(new DamageNumber(this.x, this.y, actualDamage, isRam ? '#ff4242' : '#ff0000'));
+            // For non-ram damage (like lasers), always apply damage
+            this.health -= amount;
+            
+            // Create damage number for each laser hit
+            const offsetX = (Math.random() - 0.5) * 20;
+            const offsetY = (Math.random() - 0.5) * 20;
+            damageNumbers.push(new DamageNumber(this.x + offsetX, this.y + offsetY, amount, '#ff0000'));
         }
     }
 }
@@ -103,6 +139,7 @@ class ChaserEnemy extends Enemy {
         this.color = '#ff3333';
         this.speed = 3;
         this.health = 20;
+        this.type = 'Chaser'; // Add type
     }
 
     drawShape(x, y) {
@@ -141,6 +178,7 @@ class ShooterEnemy extends Enemy {
         this.idleAngle = Math.random() * Math.PI * 2;
         this.idleTimer = 0;
         this.idleChangeInterval = 180;
+        this.type = 'Shooter'; // Add type
     }
 
     drawShape(x, y) {
@@ -255,6 +293,7 @@ class DasherEnemy extends Enemy {
         this.dashDuration = 0;
         this.maxDashDuration = 20;
         this.health = 60;
+        this.type = 'Dasher'; // Add type
     }
 
     drawShape(x, y) {
@@ -324,6 +363,7 @@ class BomberEnemy extends Enemy {
         this.orbDamage = 25;
         this.orbRange = 400; // Range before orbs dissipate
         this.orbSpread = Math.PI / 16; // Increased spread (1/16 of PI instead of 1/32)
+        this.type = 'Bomber'; // Add type
     }
 
     drawShape(x, y) {
@@ -489,6 +529,7 @@ class SwarmerEnemy extends Enemy {
         this.idleAngle = Math.random() * Math.PI * 2;
         this.idleTimer = 0;
         this.idleChangeInterval = 180;
+        this.type = 'Swarmer'; // Add type
     }
 
     drawShape(x, y) {

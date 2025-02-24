@@ -70,7 +70,8 @@ function handleCollisions() {
     });
 
     // Check laser hits with ray-casting
-    player.lasers.forEach((laser, laserIndex) => {
+    for (let laserIndex = player.lasers.length - 1; laserIndex >= 0; laserIndex--) {
+        const laser = player.lasers[laserIndex];
         // Store the previous position
         const prevX = laser.x - laser.velocityX;
         const prevY = laser.y - laser.velocityY;
@@ -88,9 +89,13 @@ function handleCollisions() {
         let shouldRemoveLaser = false;
         
         // Check enemies with ray tracing
-        let hitSomething = false;
-        
-        enemies.forEach((enemy, enemyIndex) => {
+        for (let enemyIndex = enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
+            const enemy = enemies[enemyIndex];
+            // Skip if this enemy was already hit by this piercing laser
+            if (laser.pierceCount > 0 && laser.hitEnemies && laser.hitEnemies.has(enemy)) {
+                continue;
+            }
+
             // Vector from ray origin to circle center
             const toCircleX = enemy.x - rayOriginX;
             const toCircleY = enemy.y - rayOriginY;
@@ -111,41 +116,35 @@ function handleCollisions() {
                 
                 // Check if ray hits circle
                 if (distSquared <= (enemy.width/2) * (enemy.width/2)) {
-                    hitSomething = true;
-                    
-                    // Store enemy's health before damage
-                    const oldHealth = enemy.health;
-                    
                     // Apply damage from this laser
                     enemy.takeDamage(laser.damage);
                     
-                    // Calculate actual damage done by this specific laser
-                    const actualDamage = oldHealth - enemy.health;
+                    // Track this enemy as hit if it's a piercing laser
+                    if (laser.pierceCount > 0) {
+                        if (!laser.hitEnemies) {
+                            laser.hitEnemies = new Set();
+                        }
+                        laser.hitEnemies.add(enemy);
+                        laser.pierceCount--;
+                        if (laser.pierceCount <= 0) {
+                            shouldRemoveLaser = true;
+                        }
+                    } else {
+                        shouldRemoveLaser = true;
+                    }
                     
-                    // Always create a damage number for non-zero damage
-                    if (actualDamage > 0) {
-                        // Add slight random offset to prevent overlap
-                        const offsetX = (Math.random() - 0.5) * 20;
-                        const offsetY = (Math.random() - 0.5) * 20;
-                        damageNumbers.push(new DamageNumber(enemy.x + offsetX, enemy.y + offsetY, actualDamage));
-                        
-                        if (laser.pierceCount > 0) {
-                            laser.pierceCount--;
+                    if (enemy.health <= 0) {
+                        // Drop gems when enemy is destroyed
+                        const gemCount = Math.floor(Math.random() * 3) + 1;
+                        for (let i = 0; i < gemCount; i++) {
+                            gems.push(new Gem(enemy.x, enemy.y, 10));
                         }
-                        
-                        if (enemy.health <= 0) {
-                            // Drop gems when enemy is destroyed
-                            const gemCount = Math.floor(Math.random() * 3) + 1;
-                            for (let i = 0; i < gemCount; i++) {
-                                gems.push(new Gem(enemy.x, enemy.y, 10));
-                            }
-                            enemies.splice(enemyIndex, 1);
-                            score += 100;
-                        }
+                        enemies.splice(enemyIndex, 1);
+                        score += 100;
                     }
                 }
             }
-        });
+        }
 
         // Check asteroids with ray tracing
         asteroids.forEach((asteroid, asteroidIndex) => {
@@ -194,13 +193,13 @@ function handleCollisions() {
             }
         });
 
-        // Remove laser only if it hit something and has no pierces left, or if it's off screen
-        if ((hitSomething && laser.pierceCount <= 0) || 
+        // Remove laser if it hit something (and has no pierces left) or is off screen
+        if (shouldRemoveLaser || 
             laser.x < 0 || laser.x > WORLD_WIDTH || 
             laser.y < 0 || laser.y > WORLD_HEIGHT) {
             player.lasers.splice(laserIndex, 1);
         }
-    });
+    }
 
     // Check player collisions with enemies and asteroids
     [...enemies, ...asteroids].forEach(object => {

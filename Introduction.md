@@ -42,8 +42,8 @@ A fast-paced space combat game where you pilot different ships, collect gems, an
 - Requires 500 XP to unlock
 - Ramming mechanics:
   - Deals contact damage to enemies
-  - Enemies become invulnerable for 0.75 seconds after being rammed
-  - Minimum 0.5 seconds between ram hits on the same enemy
+  - Enemies become invulnerable for 0.33 seconds after being rammed
+  - Minimum 0.25 seconds between ram hits on the same enemy
   - Increased knockback against enemies
 
 ## Enemy Types
@@ -87,6 +87,11 @@ A fast-paced space combat game where you pilot different ships, collect gems, an
 - Different weapons and attack patterns for each ship
 - Enemies drop gems when destroyed
 - Health packs spawn randomly for healing
+- Damage immunity mechanics:
+  - Ram/collision damage grants 0.33 seconds of immunity to all damage
+  - Laser damage is not blocked by immunity frames unless the enemy is currently invulnerable from a ram
+  - Multiple lasers can hit simultaneously if the enemy isn't invulnerable
+  - Piercing lasers can only hit each enemy once
 
 ### Wave System
 - Enemies spawn in waves
