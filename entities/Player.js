@@ -1186,7 +1186,7 @@ class Player {
                         this.createLaser(this.rotation - 0.15, 0.8, 1, this.x, this.y, 8, 3); // Small piercing lasers
                         this.createLaser(this.rotation + 0.15, 0.8, 1, this.x, this.y, 8, 3);
                         break;
-                    case 3: // Level 4 - Five piercing bullets in spread pattern
+                    case 3:
                     case 4:
                         // Center three bullets (20 damage)
                         this.createLaser(this.rotation, 1.2, 1, this.x, this.y, 20, 2);
@@ -1203,7 +1203,7 @@ class Player {
             return;
         }
         
-        // Class-specific shooting patterns with different energy costs
+        // Handle Sniper shooting
         if (this.shipClass.name === 'Sniper') {
             switch(this.upgradeLevel) {
                 case 0: // Single powerful shot
@@ -1236,7 +1236,9 @@ class Player {
                     }
                     break;
             }
-        } else if (this.shipClass.name === 'Fighter') {
+        }
+        // Handle regular Fighter shooting
+        else if (this.shipClass.name === 'Fighter') {
             switch(this.upgradeLevel) {
                 case 0: // Single precise shot
                     if (this.energy >= energyCost) {
@@ -1267,7 +1269,9 @@ class Player {
                     }
                     break;
             }
-        } else if (this.shipClass.name === 'Tank') {
+        }
+        // Handle Tank shooting
+        else if (this.shipClass.name === 'Tank') {
             switch(this.upgradeLevel) {
                 case 0: // Single heavy shot
                     if (this.energy >= energyCost) {
@@ -1298,7 +1302,9 @@ class Player {
                     }
                     break;
             }
-        } else if (this.shipClass.name === 'Speedster') {
+        }
+        // Handle Speedster shooting
+        else if (this.shipClass.name === 'Speedster') {
             switch(this.upgradeLevel) {
                 case 0: // Quick single shot
                     if (this.energy >= energyCost) {

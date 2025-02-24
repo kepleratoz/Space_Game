@@ -179,6 +179,83 @@ window.addEventListener('keyup', (e) => {
 });
 
 canvas.addEventListener('click', (e) => {
+    // Check if we're in class selection state
+    if (gameState === GAME_STATES.CLASS_SELECT) {
+        // Check ability unlock screen first
+        if (showingAbilityUnlockScreen) {
+            handleAbilityUnlockClick(e.clientX, e.clientY);
+            return;
+        }
+
+        // Check start game button
+        const startGameBtn = {
+            x: canvas.width/2 - 100,
+            y: canvas.height - 150,
+            width: 200,
+            height: 50
+        };
+
+        if (e.clientX >= startGameBtn.x && e.clientX <= startGameBtn.x + startGameBtn.width &&
+            e.clientY >= startGameBtn.y && e.clientY <= startGameBtn.y + startGameBtn.height) {
+            console.log('Start game button clicked');
+            if (selectedClass) {
+                startGame(selectedShipClass, selectedClass.archetype || null);
+            } else {
+                // Default to Fighter if no ship is selected
+                startGame('FIGHTER', null);
+            }
+            return;
+        }
+
+        // Handle ship selection
+        const classes = Object.entries(SHIP_CLASSES);
+        const spacing = canvas.width / (classes.length + 1);
+        
+        classes.forEach(([className, stats], index) => {
+            const x = spacing * (index + 1);
+            const y = canvas.height/2 - 100; // Match startY from drawClassSelection
+            const width = 100;
+            const height = 100;
+            
+            if (e.clientX > x - width/2 && e.clientX < x + width/2 &&
+                e.clientY > y - height/2 && e.clientY < y + height/2) {
+                if (isShipUnlocked(stats.name)) {
+                    console.log('Ship selected:', stats.name); // Debug log
+                    selectedShipClass = className;
+                    selectedClass = { ...stats }; // Create a copy to avoid modifying original
+                    selectedClass.archetype = null;
+                    console.log('selectedClass set to:', selectedClass); // Debug log
+                    showNotification(`Selected ${stats.name}`, 'success');
+                } else {
+                    // Check if clicking the unlock button
+                    const unlockBtnWidth = 80;
+                    const unlockBtnHeight = 30;
+                    const btnX = x - unlockBtnWidth/2;
+                    const btnY = y + 10;
+
+                    if (e.clientX >= btnX && e.clientX <= btnX + unlockBtnWidth &&
+                        e.clientY >= btnY && e.clientY <= btnY + unlockBtnHeight) {
+                        // Handle unlocking with XP
+                        const currentXP = getXP();
+                        if (currentXP >= stats.xpRequired) {
+                            const remainingXP = currentXP - stats.xpRequired;
+                            localStorage.setItem('spaceGameXP', remainingXP);
+                            showNotification(`Unlocked ${stats.name}!`, 'success');
+                            unlockShip(stats.name);
+                            
+                            // Auto-select the newly unlocked ship
+                            selectedShipClass = className;
+                            selectedClass = { ...stats };
+                            selectedClass.archetype = null;
+                        } else {
+                            showNotification(`Need ${stats.xpRequired} XP to unlock ${stats.name}`, 'warning');
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     // Check pause button click
     const buttonSize = 30;
     const margin = 10;
@@ -212,12 +289,6 @@ canvas.addEventListener('click', (e) => {
             return;
         }
 
-        // Handle ability unlock screen clicks if it's showing
-        if (showingAbilityUnlockScreen) {
-            handleAbilityUnlockClick(e.clientX, e.clientY);
-            return;
-        }
-
         // Check save button click if game is in progress
         if (player) {
             const saveBtn = {
@@ -233,74 +304,8 @@ canvas.addEventListener('click', (e) => {
                 return;
             }
         }
-        
-        // Check ship class selection
-        const classes = Object.entries(SHIP_CLASSES);
-        const spacing = canvas.width / (classes.length + 1);
-        
-        classes.forEach(([key, shipClass], index) => {
-            const x = spacing * (index + 1);
-            const y = canvas.height/2;  // This is where ships are actually drawn
-            const width = 100;
-            const height = 100;
-            
-            if (e.clientX > x - width/2 && 
-                e.clientX < x + width/2 && 
-                e.clientY > y - height/2 && 
-                e.clientY < y + height/2) {
-                
-                const currentXP = getXP();
-                
-                // If ship is already unlocked, allow selection without XP check
-                if (isShipUnlocked(shipClass.name)) {
-                    selectedClass = shipClass;
-                    
-                    // Reset game state
-                    player = new Player(shipClass);
-                    enemies = [];
-                    asteroids = [];
-                    healthPacks = [];
-                    gems = [];
-                    gameOver = false;
-                    score = 0;
-                    
-                    // Reset camera
-                    camera.x = player.x - canvas.width / 2;
-                    camera.y = player.y - canvas.height / 2;
-                    
-                    // Initialize wave system
-                    window.waveNumber = 1;
-                    window.enemiesRemainingInWave = Math.min(5 + window.waveNumber * 2, 25);
-                    window.waveStartTime = Date.now();
-                    window.waveTimer = 0;
-                    
-                    gameState = GAME_STATES.PLAYING;
-                    isPaused = false;
-                    
-                    // Increment games played when starting a new game
-                    incrementGamesPlayed(shipClass.name);
-                    return;
-                }
-                
-                // Check if ship is locked and player has enough XP
-                if (currentXP < shipClass.xpRequired) {
-                    showNotification(`Need ${shipClass.xpRequired} XP to unlock ${shipClass.name}`, 'warning');
-                    return;
-                }
-                
-                // If ship requires XP and hasn't been unlocked yet, spend the XP
-                if (shipClass.xpRequired > 0 && !isShipUnlocked(shipClass.name)) {
-                    // Spend XP to unlock
-                    const remainingXP = currentXP - shipClass.xpRequired;
-                    localStorage.setItem('spaceGameXP', remainingXP);
-                    showNotification(`Unlocked ${shipClass.name}!`, 'success');
-                    unlockShip(shipClass.name);
-                    return; // Return here to prevent automatically starting game
-                }
-            }
-        });
 
-        // Check if settings button was clicked
+        // Check settings button
         const settingsX = canvas.width - buttonSize - margin;
         const settingsY = margin + buttonSize + 10;
         
@@ -468,7 +473,7 @@ canvas.addEventListener('mousedown', (e) => {
             
             classes.forEach(([key, shipClass], index) => {
                 const x = spacing * (index + 1);
-                const y = canvas.height/2;
+                const y = canvas.height/2 - 100; // Match startY from drawClassSelection
                 const width = 100;
                 const height = 100;
                 

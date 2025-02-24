@@ -1,5 +1,12 @@
+// Initialize state variables at the top of the file
+window.selectedClass = null;
+window.selectedShipClass = null;
+window.selectedShipForAbilities = null;
+window.showingAbilityUnlockScreen = false;
+
 // Class selection UI functions
 function drawClassSelection() {
+    // Clear the screen first
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -15,113 +22,137 @@ function drawClassSelection() {
     ctx.fillText(`XP: ${getXP()}`, canvas.width/2, 150);
 
     // Draw ship classes
-    const shipWidth = 200;
-    const shipHeight = 200;
-    const spacing = 50;
-    const startX = canvas.width/2 - (Object.keys(SHIP_CLASSES).length * (shipWidth + spacing))/2;
-    const startY = 200;
+    const classes = Object.entries(SHIP_CLASSES);
+    const spacing = canvas.width / (classes.length + 1);
+    const startY = canvas.height/2 - 100;
 
-    Object.entries(SHIP_CLASSES).forEach(([className, stats], index) => {
-        const x = startX + index * (shipWidth + spacing);
+    classes.forEach(([className, stats], index) => {
+        const x = spacing * (index + 1);
         const y = startY;
         const isUnlocked = isShipUnlocked(stats.name);
         
-        // Draw ship card
+        // Calculate card dimensions based on content
+        ctx.font = '24px Arial';
+        const nameWidth = ctx.measureText(stats.name).width;
+        const statsWidth = isUnlocked ? Math.max(
+            ctx.measureText(`Health: ${stats.health}`).width,
+            ctx.measureText(`Speed: ${stats.maxSpeed}`).width,
+            ctx.measureText(`Energy: ${stats.maxEnergy}`).width
+        ) : ctx.measureText(`${stats.xpRequired} XP`).width;
+        const cardWidth = Math.max(nameWidth, statsWidth) + 40; // Add padding
+        const cardHeight = isUnlocked ? 140 : 100; // Height based on content
+
+        // Draw card background
         ctx.fillStyle = isUnlocked ? 
             (selectedShipClass === className ? '#2c3e50' : '#34495e') : 
             '#2c3e50';
         ctx.beginPath();
-        ctx.roundRect(x, y, shipWidth, shipHeight, 8);
+        ctx.roundRect(x - cardWidth/2, y - cardHeight/2, cardWidth, cardHeight, 8);
         ctx.fill();
+
+        // Draw simple gray outline
+        ctx.strokeStyle = '#95a5a6';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw ship preview in the center of the card
+        if (isUnlocked) {
+            ctx.fillStyle = stats.color;
+            ctx.save();
+            ctx.translate(x, y - 10);
+            
+            // Draw ship shape
+            ctx.beginPath();
+            ctx.moveTo(20, 0);
+            ctx.lineTo(-20, 15);
+            ctx.lineTo(-10, 0);
+            ctx.lineTo(-20, -15);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
 
         // Draw ship name and stats
         ctx.fillStyle = '#fff';
         ctx.font = '24px Arial';
-        ctx.fillText(stats.name, x + shipWidth/2, y + 40);
+        ctx.textAlign = 'center';
+        ctx.fillText(stats.name, x, y - cardHeight/2 + 30);
 
         if (isUnlocked) {
             ctx.font = '16px Arial';
             ctx.fillStyle = '#bdc3c7';
-            ctx.fillText(`Health: ${stats.health}`, x + shipWidth/2, y + 70);
-            ctx.fillText(`Speed: ${stats.maxSpeed}`, x + shipWidth/2, y + 90);
-            ctx.fillText(`Energy: ${stats.maxEnergy}`, x + shipWidth/2, y + 110);
+            ctx.fillText(`Health: ${stats.health}`, x, y + 20);
+            ctx.fillText(`Speed: ${stats.maxSpeed}`, x, y + 40);
+            ctx.fillText(`Energy: ${stats.maxEnergy}`, x, y + 60);
             
             // Add "Right-click to view abilities" text
             ctx.fillStyle = '#3498db';
             ctx.font = '14px Arial';
-            ctx.fillText('Right-click to view abilities', x + shipWidth/2, y + 140);
+            ctx.fillText('Right-click to view abilities', x, y + cardHeight/2 - 10);
         } else {
-            ctx.fillStyle = '#e74c3c';
-            ctx.font = '20px Arial';
-            ctx.fillText('Locked', x + shipWidth/2, y + 90);
+            // Draw unlock button for locked ships
+            const unlockBtnWidth = Math.min(cardWidth - 20, 80);
+            const unlockBtnHeight = 30;
+            const btnX = x - unlockBtnWidth/2;
+            const btnY = y + 10;
+            
+            const canAfford = getXP() >= stats.xpRequired;
+            ctx.fillStyle = canAfford ? '#2ecc71' : '#e74c3c';
+            ctx.beginPath();
+            ctx.roundRect(btnX, btnY, unlockBtnWidth, unlockBtnHeight, 8);
+            ctx.fill();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px Arial';
+            ctx.fillText(`${stats.xpRequired} XP`, x, btnY + 20);
         }
     });
 
     // Draw ability unlock screen if showing
     if (showingAbilityUnlockScreen && selectedShipForAbilities) {
         drawAbilityUnlockScreen();
-    }
-}
-
-function handleClassSelectionClick(e) {
-    // Check ability unlock screen first
-    if (showingAbilityUnlockScreen) {
-        handleAbilityUnlockClick(e.clientX, e.clientY);
         return;
     }
 
-    // Handle right-click for abilities
-    if (e.button === 2) {
-        const shipWidth = 200;
-        const shipHeight = 200;
-        const spacing = 50;
-        const startX = canvas.width/2 - (Object.keys(SHIP_CLASSES).length * (shipWidth + spacing))/2;
-        const startY = 200;
+    console.log('Drawing start game button...');
+    
+    // Draw a smaller button lower on the screen
+    const startGameBtn = {
+        x: canvas.width/2 - 100,
+        y: canvas.height - 150,
+        width: 200,
+        height: 50
+    };
 
-        Object.entries(SHIP_CLASSES).forEach(([className, stats]) => {
-            const x = startX + Object.keys(SHIP_CLASSES).indexOf(className) * (shipWidth + spacing);
-            const y = startY;
+    // Draw button background with hover effect
+    ctx.fillStyle = mouse.x >= startGameBtn.x && 
+                   mouse.x <= startGameBtn.x + startGameBtn.width &&
+                   mouse.y >= startGameBtn.y && 
+                   mouse.y <= startGameBtn.y + startGameBtn.height
+                   ? '#2ecc71' : '#27ae60';  // Lighter green on hover
+    ctx.beginPath();
+    ctx.roundRect(startGameBtn.x, startGameBtn.y, startGameBtn.width, startGameBtn.height, 8);
+    ctx.fill();
 
-            if (e.clientX >= x && e.clientX <= x + shipWidth &&
-                e.clientY >= y && e.clientY <= y + shipHeight) {
-                if (isShipUnlocked(stats.name)) {
-                    selectedShipClass = className;
-                    selectedShipForAbilities = className;
-                    showingAbilityUnlockScreen = true;
-                }
-            }
-        });
-        return;
-    }
+    // Draw white border
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-    // Handle left-click for ship selection
-    if (e.button === 0) {
-        const shipWidth = 200;
-        const shipHeight = 200;
-        const spacing = 50;
-        const startX = canvas.width/2 - (Object.keys(SHIP_CLASSES).length * (shipWidth + spacing))/2;
-        const startY = 200;
+    // Draw text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('START GAME', startGameBtn.x + startGameBtn.width/2, startGameBtn.y + 33);
 
-        Object.entries(SHIP_CLASSES).forEach(([className, stats]) => {
-            const x = startX + Object.keys(SHIP_CLASSES).indexOf(className) * (shipWidth + spacing);
-            const y = startY;
+    // Draw selected ship name or default text above button
+    ctx.font = '20px Arial';
+    const displayText = selectedClass ? `Selected: ${selectedClass.name}` : 'Default: Fighter';
+    ctx.fillText(displayText, startGameBtn.x + startGameBtn.width/2, startGameBtn.y - 20);
 
-            if (e.clientX >= x && e.clientX <= x + shipWidth &&
-                e.clientY >= y && e.clientY <= y + shipHeight) {
-                if (isShipUnlocked(stats.name)) {
-                    if (selectedClass) {
-                        // If we have a selected archetype, preserve it
-                        const archetype = selectedClass;
-                        startGame(className, archetype);
-                    } else {
-                        selectedShipClass = className;
-                        selectedClass = stats;
-                        startGame(className);
-                    }
-                }
-            }
-        });
-    }
+    window.startGameBtn = startGameBtn; // Store button coordinates globally
+    console.log('Button drawn at:', startGameBtn);
 }
 
 function drawAbilityUnlockScreen() {
@@ -234,18 +265,34 @@ function drawAbilityUnlockScreen() {
 }
 
 function drawArchetypeCard(ship, x, y, width, height, isBase = false) {
+    // Calculate card dimensions based on content
+    ctx.font = '24px Arial';
+    const nameWidth = ctx.measureText(ship.name).width;
+    const statsWidth = Math.max(
+        ctx.measureText(`Health: ${ship.health}`).width,
+        ctx.measureText(`Speed: ${ship.maxSpeed}`).width,
+        ctx.measureText(`Energy: ${ship.maxEnergy}`).width
+    );
+    const cardWidth = Math.max(nameWidth, statsWidth) + 60;
+    const cardHeight = 180;
+
     // Card background
     ctx.fillStyle = '#2c3e50';
     ctx.beginPath();
-    ctx.roundRect(x, y, width, height, 8);
+    ctx.roundRect(x, y, cardWidth, cardHeight, 8);
     ctx.fill();
+
+    // Simple gray outline
+    ctx.strokeStyle = '#95a5a6';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
     // Draw ship preview (triangle shape)
     ctx.fillStyle = ship.color;
     ctx.beginPath();
-    ctx.moveTo(x + width/2 + 30, y + height/2);
-    ctx.lineTo(x + width/2 - 30, y + height/2 + 20);
-    ctx.lineTo(x + width/2 - 30, y + height/2 - 20);
+    ctx.moveTo(x + cardWidth/2 + 30, y + cardHeight/2 - 20);
+    ctx.lineTo(x + cardWidth/2 - 30, y + cardHeight/2);
+    ctx.lineTo(x + cardWidth/2 - 30, y + cardHeight/2 - 40);
     ctx.closePath();
     ctx.fill();
 
@@ -253,88 +300,64 @@ function drawArchetypeCard(ship, x, y, width, height, isBase = false) {
     ctx.fillStyle = '#fff';
     ctx.font = '24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(ship.name, x + width/2, y + 40);
+    ctx.fillText(ship.name, x + cardWidth/2, y + 40);
 
     // Stats
     ctx.font = '16px Arial';
     ctx.fillStyle = '#bdc3c7';
-    ctx.fillText(`Health: ${ship.health}`, x + width/2, y + height - 80);
-    ctx.fillText(`Speed: ${ship.maxSpeed}`, x + width/2, y + height - 60);
-    ctx.fillText(`Energy: ${ship.maxEnergy}`, x + width/2, y + height - 40);
+    ctx.fillText(`Health: ${ship.health}`, x + cardWidth/2, y + cardHeight - 80);
+    ctx.fillText(`Speed: ${ship.maxSpeed}`, x + cardWidth/2, y + cardHeight - 60);
+    ctx.fillText(`Energy: ${ship.maxEnergy}`, x + cardWidth/2, y + cardHeight - 40);
 
     // Selection text
     ctx.fillStyle = '#3498db';
     ctx.font = '14px Arial';
-    ctx.fillText(isBase ? 'Current' : 'Click to select', x + width/2, y + height - 10);
+    ctx.fillText(isBase ? 'Current' : 'Click to select', x + cardWidth/2, y + cardHeight - 10);
 }
 
 function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
+    // Calculate card dimensions based on content
+    ctx.font = '24px Arial';
+    const nameWidth = ctx.measureText(ability.name).width;
+    const descriptionLines = wrapText(ability.description, width - 40);
+    const cardWidth = Math.max(nameWidth, width) + 40;
+    const cardHeight = 120 + (descriptionLines.length * 20);
+
     // Card background
     const isUnlocked = isAbilityUnlocked(selectedShipForAbilities, ability.name);
     ctx.fillStyle = isUnlocked ? '#2c3e50' : '#34495e';
     ctx.beginPath();
-    ctx.roundRect(x, y, width, height, 8);
+    ctx.roundRect(x, y, cardWidth, cardHeight, 8);
     ctx.fill();
+
+    // Simple gray outline
+    ctx.strokeStyle = '#95a5a6';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
     // Ability name
     ctx.fillStyle = '#fff';
     ctx.font = '24px Arial';
     ctx.textAlign = 'center';
-    // Measure and resize ability name if needed
-    let nameSize = 24;
-    while (ctx.measureText(ability.name).width > width - 40 && nameSize > 12) {
-        nameSize--;
-        ctx.font = `${nameSize}px Arial`;
-    }
-    ctx.fillText(ability.name, x + width/2, y + 40);
+    ctx.fillText(ability.name, x + cardWidth/2, y + 40);
 
     // Description
     ctx.font = '16px Arial';
     ctx.fillStyle = '#bdc3c7';
-    // Split description into words and create lines that fit
-    const words = ability.description.split(' ');
-    const lines = [];
-    let currentLine = words[0];
-    let descSize = 16;
-
-    // Find the largest font size that allows text to fit in 2-3 lines
-    while (descSize > 10) {
-        ctx.font = `${descSize}px Arial`;
-        lines.length = 0;
-        currentLine = words[0];
-
-        for (let i = 1; i < words.length; i++) {
-            const testLine = currentLine + ' ' + words[i];
-            if (ctx.measureText(testLine).width <= width - 40) {
-                currentLine = testLine;
-            } else {
-                lines.push(currentLine);
-                currentLine = words[i];
-            }
-        }
-        lines.push(currentLine);
-
-        if (lines.length <= 3) break;
-        descSize--;
-    }
-
-    // Draw description lines
-    const lineHeight = descSize * 1.2;
-    lines.forEach((line, index) => {
-        ctx.fillText(line, x + width/2, y + 70 + (index * lineHeight));
+    descriptionLines.forEach((line, index) => {
+        ctx.fillText(line, x + cardWidth/2, y + 70 + (index * 20));
     });
 
-    // Cost or status
+    // Status or unlock button
     if (isUnlocked) {
         ctx.fillStyle = '#2ecc71';
         ctx.font = '20px Arial';
-        ctx.fillText('Unlocked', x + width/2, y + height - 30);
+        ctx.fillText('Unlocked', x + cardWidth/2, y + cardHeight - 20);
     } else {
-        // Draw unlock button
-        const btnWidth = 200;
+        const btnWidth = Math.min(cardWidth - 20, 200);
         const btnHeight = 40;
-        const btnX = x + width/2 - btnWidth/2;
-        const btnY = y + height - btnHeight - 20;
+        const btnX = x + cardWidth/2 - btnWidth/2;
+        const btnY = y + cardHeight - btnHeight - 10;
         const xpCost = isAbility2 ? 1200 : 750;
 
         const canAfford = getXP() >= xpCost;
@@ -347,17 +370,30 @@ function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
         ctx.roundRect(btnX, btnY, btnWidth, btnHeight, 8);
         ctx.fill();
 
-        // Measure and resize unlock button text if needed
-        const unlockText = `Unlock (${xpCost} XP)`;
-        let btnTextSize = 20;
-        ctx.font = `${btnTextSize}px Arial`;
-        while (ctx.measureText(unlockText).width > btnWidth - 20 && btnTextSize > 12) {
-            btnTextSize--;
-            ctx.font = `${btnTextSize}px Arial`;
-        }
         ctx.fillStyle = '#fff';
-        ctx.fillText(unlockText, x + width/2, btnY + btnHeight/2 + btnTextSize/3);
+        ctx.font = '20px Arial';
+        ctx.fillText(`Unlock (${xpCost} XP)`, x + cardWidth/2, btnY + 25);
     }
+}
+
+// Helper function to wrap text
+function wrapText(text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = words[0];
+
+    ctx.font = '16px Arial';
+    for (let i = 1; i < words.length; i++) {
+        const testLine = currentLine + ' ' + words[i];
+        if (ctx.measureText(testLine).width <= maxWidth) {
+            currentLine = testLine;
+        } else {
+            lines.push(currentLine);
+            currentLine = words[i];
+        }
+    }
+    lines.push(currentLine);
+    return lines;
 }
 
 function handleAbilityUnlockClick(mouseX, mouseY) {
@@ -388,11 +424,13 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
     // Check base class click
     if (mouseX >= startX && mouseX <= startX + archetypeWidth &&
         mouseY >= startY && mouseY <= startY + archetypeHeight) {
-        // Start game directly with base class
-        startGame(selectedShipForAbilities);
+        // Just select the base class
+        selectedClass = shipClass;
+        selectedShipClass = selectedShipForAbilities;
+        selectedClass.archetype = null;
         showingAbilityUnlockScreen = false;
         selectedShipForAbilities = null;
-        showNotification('Starting game as Fighter!', 'success');
+        showNotification('Selected Fighter', 'success');
         return;
     }
 
@@ -401,7 +439,7 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
         const assaultX = startX + archetypeWidth + spacing;
         if (mouseX >= assaultX && mouseX <= assaultX + archetypeWidth &&
             mouseY >= startY && mouseY <= startY + archetypeHeight) {
-            // Create archetype configuration
+            // Create archetype configuration but don't start game
             const archetype = {
                 ...shipClass.archetypes.ASSAULT,  // Start with the base archetype properties
                 abilities: shipClass.abilities,  // Preserve abilities from base class
@@ -412,11 +450,12 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
                 shootCost: shipClass.shootCost * 2  // Double energy consumption
             };
             
-            console.log('Starting game with assault archetype:', archetype);
-            startGame(selectedShipForAbilities, archetype);
+            selectedClass = shipClass;
+            selectedShipClass = selectedShipForAbilities;
+            selectedClass.archetype = archetype;
             showingAbilityUnlockScreen = false;
             selectedShipForAbilities = null;
-            showNotification('Starting game as Assault Fighter!', 'success');
+            showNotification('Selected Assault Fighter', 'success');
             return;
         }
     }
@@ -486,34 +525,6 @@ window.drawClassSelection = drawClassSelection;
 window.drawAbilityUnlockScreen = drawAbilityUnlockScreen;
 window.handleAbilityUnlockClick = handleAbilityUnlockClick;
 window.drawArchetypeCard = drawArchetypeCard;
-
-// Update the click handler in input.js to use the correct case
-window.addEventListener('mousedown', (e) => {
-    if (e.button === 2) { // Right click
-        if (gameState === GAME_STATES.CLASS_SELECT) {
-            const classes = Object.entries(SHIP_CLASSES);
-            const spacing = canvas.width / (classes.length + 1);
-            
-            classes.forEach(([key, shipClass], index) => {
-                const x = spacing * (index + 1);
-                const y = canvas.height/2;
-                const width = 100;
-                const height = 100;
-                
-                if (e.clientX > x - width/2 && 
-                    e.clientX < x + width/2 && 
-                    e.clientY > y - height/2 && 
-                    e.clientY < y + height/2) {
-                    if (isShipUnlocked(shipClass.name)) {
-                        selectedShipClass = key;
-                        selectedShipForAbilities = key;
-                        showingAbilityUnlockScreen = true;
-                    }
-                }
-            });
-        }
-    }
-});
 
 // Add startGame function at the end of the file
 function startGame(className, archetype = null) {
@@ -602,4 +613,11 @@ function startGame(className, archetype = null) {
 }
 
 // Make startGame globally available
+window.startGame = startGame;
+
+// Export necessary functions
+window.drawClassSelection = drawClassSelection;
+window.drawAbilityUnlockScreen = drawAbilityUnlockScreen;
+window.handleAbilityUnlockClick = handleAbilityUnlockClick;
+window.drawArchetypeCard = drawArchetypeCard;
 window.startGame = startGame; 

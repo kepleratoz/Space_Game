@@ -37,7 +37,6 @@ function gameLoop() {
     // Respect max framerate setting
     const frameTime = 1000 / settings.maxFPS;
     if (deltaTime < frameTime) {
-        // Use setTimeout for more precise timing at high framerates
         setTimeout(() => requestAnimationFrame(gameLoop), 0);
         return;
     }

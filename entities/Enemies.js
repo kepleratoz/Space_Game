@@ -71,29 +71,28 @@ class Enemy {
 
         if (isRam) {
             // For ram damage, check if enough time has passed since last ram
-            if (currentTime - this.lastRamTime < 250) { // Reduced from 500ms to 250ms minimum between ram hits
+            if (currentTime - this.lastRamTime < 250) { // 250ms minimum between ram hits
                 return; // Skip damage if hit too recently
             }
             this.lastRamTime = currentTime;
+            this.lastHitTime = currentTime;
         } else {
-            // For regular damage, only apply cooldown if not invulnerable
-            // This allows multiple hits from the same volley
-            if (!this.invulnerable && currentTime - this.lastHitTime < 100) { // 100ms minimum between regular hits
-                return; // Skip damage if hit too recently and not already invulnerable
+            // For regular damage, always enforce a minimum time between hits
+            if (currentTime - this.lastHitTime < 100) { // 100ms minimum between regular hits
+                return; // Skip damage if hit too recently
             }
             this.lastHitTime = currentTime;
         }
 
-        if (!this.invulnerable) {
-            this.health -= amount;
-            this.invulnerable = true;
-            this.invulnerableTime = isRam ? this.ramInvulnerabilityDuration : this.regularInvulnerabilityDuration;
-            
-            // Create damage number if damage was actually dealt
-            const actualDamage = oldHealth - this.health;
-            if (actualDamage > 0) {
-                damageNumbers.push(new DamageNumber(this.x, this.y, actualDamage, isRam ? '#ff4242' : '#ff0000'));
-            }
+        // Apply damage and set invulnerability
+        this.health -= amount;
+        this.invulnerable = true;
+        this.invulnerableTime = isRam ? this.ramInvulnerabilityDuration : this.regularInvulnerabilityDuration;
+        
+        // Create damage number if damage was actually dealt
+        const actualDamage = oldHealth - this.health;
+        if (actualDamage > 0) {
+            damageNumbers.push(new DamageNumber(this.x, this.y, actualDamage, isRam ? '#ff4242' : '#ff0000'));
         }
     }
 }
