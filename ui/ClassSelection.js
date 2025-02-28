@@ -59,10 +59,10 @@ function drawClassSelection() {
             '#2c3e50';
         ctx.fillRect(x - cardWidth/2, y - cardHeight/2, cardWidth, cardHeight);  // Changed to fillRect
 
-        // Draw gray outline
-        ctx.strokeStyle = '#95a5a6';
+        // Draw white outline
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
-        ctx.strokeRect(x - cardWidth/2, y - cardHeight/2, cardWidth, cardHeight);  // Changed to strokeRect
+        ctx.strokeRect(x - cardWidth/2, y - cardHeight/2, cardWidth, cardHeight);
 
         // Draw ship preview in the center of the card
         if (isUnlocked) {
@@ -104,7 +104,7 @@ function drawClassSelection() {
             const canAfford = getXP() >= stats.xpRequired;
             ctx.fillStyle = canAfford ? '#2ecc71' : '#e74c3c';
             ctx.fillRect(btnX, btnY, unlockBtnWidth, unlockBtnHeight);  // Changed to fillRect
-            ctx.strokeStyle = '#95a5a6';
+            ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.strokeRect(btnX, btnY, unlockBtnWidth, unlockBtnHeight);  // Added outline
             
@@ -138,8 +138,8 @@ function drawClassSelection() {
                    ? '#2ecc71' : '#27ae60';  // Lighter green on hover
     ctx.fillRect(startGameBtn.x, startGameBtn.y, startGameBtn.width, startGameBtn.height);  // Changed to fillRect
 
-    // Draw gray outline
-    ctx.strokeStyle = '#95a5a6';
+    // Draw white outline
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.strokeRect(startGameBtn.x, startGameBtn.y, startGameBtn.width, startGameBtn.height);  // Changed to strokeRect
 
@@ -158,6 +158,73 @@ function drawClassSelection() {
     console.log('Button drawn at:', startGameBtn);
 }
 
+function drawArchetypeCard(ship, x, y, isBase = false) {
+    const circleRadius = 40;
+    
+    // Draw circle background
+    ctx.fillStyle = '#2c3e50';
+    ctx.beginPath();
+    ctx.arc(x + circleRadius, y + circleRadius, circleRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw white outline
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw ship preview
+    ctx.fillStyle = ship.color;
+    ctx.save();
+    ctx.translate(x + circleRadius, y + circleRadius);
+    
+    // Draw ship shape (slightly larger than before)
+    ctx.beginPath();
+    ctx.moveTo(30, 0);  // Tip of ship
+    ctx.lineTo(-30, 20); // Bottom wing
+    ctx.lineTo(-15, 0);  // Back center
+    ctx.lineTo(-30, -20); // Top wing
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.restore();
+
+    // If mouse is hovering over this circle, show info card
+    if (Math.hypot(mouse.x - (x + circleRadius), mouse.y - (y + circleRadius)) <= circleRadius) {
+        // Draw info card next to the circle
+        const cardWidth = 200;
+        const cardHeight = 160;
+        const cardX = x + circleRadius * 2 + 20; // Position to the right of circle
+        const cardY = y;
+        
+        // Info card background
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillRect(cardX, cardY, cardWidth, cardHeight);
+        
+        // Info card border
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cardX, cardY, cardWidth, cardHeight);
+        
+        // Ship name
+        ctx.fillStyle = '#fff';
+        ctx.font = '24px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(ship.name, cardX + 10, cardY + 30);
+        
+        // Stats
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#bdc3c7';
+        ctx.fillText(`Health: ${ship.health}`, cardX + 10, cardY + 60);
+        ctx.fillText(`Speed: ${ship.maxSpeed}`, cardX + 10, cardY + 85);
+        ctx.fillText(`Energy: ${ship.maxEnergy}`, cardX + 10, cardY + 110);
+        
+        // Selection text
+        ctx.fillStyle = '#3498db';
+        ctx.font = '14px Arial';
+        ctx.fillText(isBase ? 'Current' : 'Click to select', cardX + 10, cardY + 140);
+    }
+}
+
 function drawAbilityUnlockScreen() {
     // Darken background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -165,9 +232,9 @@ function drawAbilityUnlockScreen() {
 
     // Draw title
     ctx.fillStyle = '#fff';
-    ctx.font = '36px Arial';  // Reduced from 48px
+    ctx.font = '36px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Ship Evolution Tree', canvas.width/4, 60);  // Moved up from 80
+    ctx.fillText('Ship Evolution Tree', canvas.width/4, 60);
     ctx.fillText('Ship Abilities', canvas.width * 3/4, 60);
 
     // Draw back button
@@ -178,10 +245,10 @@ function drawAbilityUnlockScreen() {
         height: 35
     };
     ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(backBtn.x, backBtn.y, backBtn.width, backBtn.height);  // Changed to fillRect
-    ctx.strokeStyle = '#95a5a6';
+    ctx.fillRect(backBtn.x, backBtn.y, backBtn.width, backBtn.height);
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
-    ctx.strokeRect(backBtn.x, backBtn.y, backBtn.width, backBtn.height);  // Added outline
+    ctx.strokeRect(backBtn.x, backBtn.y, backBtn.width, backBtn.height);
     ctx.fillStyle = '#fff';
     ctx.font = '18px Arial';
     ctx.textAlign = 'center';
@@ -191,133 +258,51 @@ function drawAbilityUnlockScreen() {
     if (!shipClass) return;
 
     // Left side - Archetype Tree
-    const archetypeWidth = 280;  // Reduced from 350
-    const archetypeHeight = 200;  // Reduced from 250
-    const verticalSpacing = 60;  // Reduced from 100
+    const circleRadius = 40;
+    const verticalSpacing = 80;
 
-    // Position base class card at the top of left side
-    const startX = canvas.width/4 - archetypeWidth/2;
-    const startY = 100;  // Reduced from 140
+    // Position base class circle
+    const startX = canvas.width/4 - circleRadius;
+    const startY = 100;
 
-    // Draw base class card
-    drawArchetypeCard(shipClass, startX, startY, archetypeWidth, archetypeHeight, true);
+    // Draw base class circle
+    drawArchetypeCard(shipClass, startX, startY, true);
 
     // Draw connecting line from base to archetype
     if (shipClass.archetypes && shipClass.archetypes.ASSAULT) {
-        ctx.strokeStyle = '#95a5a6';
-        ctx.lineWidth = 3;  // Reduced from 4
+        // Draw simple white line connecting the circles
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(startX + archetypeWidth/2, startY + archetypeHeight);
-        ctx.lineTo(startX + archetypeWidth/2, startY + archetypeHeight + verticalSpacing);
+        ctx.moveTo(startX + circleRadius, startY + circleRadius * 2);
+        ctx.lineTo(startX + circleRadius, startY + circleRadius * 2 + verticalSpacing);
         ctx.stroke();
 
-        // Draw arrow at the end of the line
-        const arrowSize = 10;  // Reduced from 15
-        ctx.beginPath();
-        ctx.moveTo(startX + archetypeWidth/2, startY + archetypeHeight + verticalSpacing);
-        ctx.lineTo(startX + archetypeWidth/2 - arrowSize, startY + archetypeHeight + verticalSpacing - arrowSize);
-        ctx.lineTo(startX + archetypeWidth/2 + arrowSize, startY + archetypeHeight + verticalSpacing - arrowSize);
-        ctx.closePath();
-        ctx.fillStyle = '#95a5a6';
-        ctx.fill();
-
-        // Draw assault archetype card below
+        // Draw assault archetype circle below
         drawArchetypeCard(
             shipClass.archetypes.ASSAULT,
             startX,
-            startY + archetypeHeight + verticalSpacing,
-            archetypeWidth,
-            archetypeHeight
+            startY + circleRadius * 2 + verticalSpacing
         );
     }
 
     // Right side - Abilities
-    const abilityWidth = 280;  // Reduced from 350
-    const abilityHeight = 160;  // Reduced from 200
-    const abilitySpacing = 40;  // Reduced from 60
+    const abilityWidth = 280;
+    const abilityHeight = 160;
+    const abilitySpacing = 40;
 
     // Get ship abilities
     const shipAbilities = new Player(SHIP_CLASSES[selectedShipForAbilities]).abilities;
 
     // Draw ability 1 card
     const ability1X = canvas.width * 3/4 - abilityWidth/2;
-    const ability1Y = 100;  // Reduced from 140
+    const ability1Y = 100;
     drawAbilityCard(shipAbilities.ability1, ability1X, ability1Y, abilityWidth, abilityHeight, 1);
 
     // Draw ability 2 card
     const ability2X = canvas.width * 3/4 - abilityWidth/2;
     const ability2Y = ability1Y + abilityHeight + abilitySpacing;
     drawAbilityCard(shipAbilities.ability2, ability2X, ability2Y, abilityWidth, abilityHeight, 2);
-}
-
-function drawArchetypeCard(ship, x, y, width, height, isBase = false) {
-    // Calculate text dimensions
-    ctx.font = '24px Arial';  // Reduced from 32px
-    const nameWidth = ctx.measureText(ship.name).width;
-    
-    ctx.font = '16px Arial';  // Reduced from 20px
-    const statsWidth = Math.max(
-        ctx.measureText(`Health: ${ship.health}`).width,
-        ctx.measureText(`Speed: ${ship.maxSpeed}`).width,
-        ctx.measureText(`Energy: ${ship.maxEnergy}`).width
-    );
-
-    ctx.font = '14px Arial';  // Reduced from 18px
-    const rightClickTextWidth = ctx.measureText('Right-click to view abilities').width;
-
-    // Calculate card dimensions based on content
-    const padding = 25;  // Reduced from 40
-    const verticalSpacing = 25;  // Reduced from 35
-    const shipPreviewHeight = 50;  // Reduced from 70
-    const cardWidth = Math.max(nameWidth, statsWidth, rightClickTextWidth) + (padding * 2);
-    const cardHeight = (
-        padding + // Top padding
-        30 + // Name height (reduced from 40)
-        shipPreviewHeight + // Ship preview
-        (verticalSpacing * 3) + // Stats spacing
-        verticalSpacing + // Extra spacing before selection text
-        20 + // Selection text (reduced from 25)
-        padding // Bottom padding
-    );
-
-    // Card background
-    ctx.fillStyle = '#2c3e50';
-    ctx.fillRect(x, y, cardWidth, cardHeight);  // Changed to fillRect
-
-    // Gray outline
-    ctx.strokeStyle = '#95a5a6';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, cardWidth, cardHeight);  // Changed to strokeRect
-
-    // Draw ship preview (triangle shape)
-    ctx.fillStyle = ship.color;
-    ctx.beginPath();
-    const shipY = y + padding + 30 + (shipPreviewHeight/2);
-    ctx.moveTo(x + cardWidth/2 + 30, shipY);  // Reduced from 40
-    ctx.lineTo(x + cardWidth/2 - 30, shipY + 20);  // Reduced from 40/25
-    ctx.lineTo(x + cardWidth/2 - 30, shipY - 20);
-    ctx.closePath();
-    ctx.fill();
-
-    // Ship name
-    ctx.fillStyle = '#fff';
-    ctx.font = '24px Arial';  // Reduced from 32px
-    ctx.textAlign = 'center';
-    ctx.fillText(ship.name, x + cardWidth/2, y + padding + 24);  // Adjusted for smaller font
-
-    // Stats
-    ctx.font = '16px Arial';  // Reduced from 20px
-    ctx.fillStyle = '#bdc3c7';
-    const statsY = y + padding + 30 + shipPreviewHeight + verticalSpacing;
-    ctx.fillText(`Health: ${ship.health}`, x + cardWidth/2, statsY);
-    ctx.fillText(`Speed: ${ship.maxSpeed}`, x + cardWidth/2, statsY + verticalSpacing);
-    ctx.fillText(`Energy: ${ship.maxEnergy}`, x + cardWidth/2, statsY + (verticalSpacing * 2));
-
-    // Selection text
-    ctx.fillStyle = '#3498db';
-    ctx.font = '14px Arial';  // Reduced from 18px
-    const selectionY = statsY + (verticalSpacing * 3);
-    ctx.fillText(isBase ? 'Current' : 'Click to select', x + cardWidth/2, selectionY);
 }
 
 function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
@@ -352,7 +337,7 @@ function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
     ctx.fillRect(x, y, cardWidth, cardHeight);  // Changed to fillRect
 
     // Gray outline
-    ctx.strokeStyle = '#95a5a6';
+    ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, cardWidth, cardHeight);  // Changed to strokeRect
 
@@ -388,7 +373,7 @@ function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
 
         // Draw button as rectangle
         ctx.fillRect(btnX, btnY, btnWidth, buttonHeight);  // Changed to fillRect
-        ctx.strokeStyle = '#95a5a6';
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
         ctx.strokeRect(btnX, btnY, btnWidth, buttonHeight);  // Added outline
 
@@ -540,18 +525,16 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
     const shipClass = SHIP_CLASSES[selectedShipForAbilities];
     if (!shipClass) return;
 
-    // Calculate archetype card dimensions exactly as drawn
-    const archetypeWidth = 280;  // Same as in drawArchetypeCard
-    const archetypeHeight = 200;  // Same as in drawArchetypeCard
-    const verticalSpacing = 60;
+    // Circle dimensions
+    const circleRadius = 40;
+    const verticalSpacing = 80;
 
-    // Left side - Archetype Tree (use exact same coordinates as drawing)
-    const startX = canvas.width/4 - archetypeWidth/2;
+    // Left side - Archetype Tree
+    const startX = canvas.width/4 - circleRadius;
     const startY = 100;
 
-    // Check base class click using exact same area as drawn
-    if (mouseX >= startX && mouseX <= startX + archetypeWidth &&
-        mouseY >= startY && mouseY <= startY + archetypeHeight) {
+    // Check base class circle click
+    if (Math.hypot(mouseX - (startX + circleRadius), mouseY - (startY + circleRadius)) <= circleRadius) {
         selectedClass = shipClass;
         selectedShipClass = selectedShipForAbilities;
         selectedClass.archetype = null;
@@ -561,11 +544,10 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
         return;
     }
 
-    // Check assault archetype click using exact same area as drawn
+    // Check assault archetype circle click
     if (shipClass.archetypes && shipClass.archetypes.ASSAULT) {
-        const assaultY = startY + archetypeHeight + verticalSpacing;
-        if (mouseX >= startX && mouseX <= startX + archetypeWidth &&
-            mouseY >= assaultY && mouseY <= assaultY + archetypeHeight) {
+        const assaultY = startY + circleRadius * 2 + verticalSpacing;
+        if (Math.hypot(mouseX - (startX + circleRadius), mouseY - (assaultY + circleRadius)) <= circleRadius) {
             const archetype = {
                 ...shipClass.archetypes.ASSAULT,
                 abilities: shipClass.abilities,
@@ -586,29 +568,26 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
         }
     }
 
-    // Right side - Abilities (use exact same dimensions as drawn)
+    // Right side - Abilities (keep existing ability card click handling)
     const abilityWidth = 280;
     const abilityHeight = 160;
     const abilitySpacing = 40;
 
-    // Get ship abilities
-    const shipAbilities = new Player(SHIP_CLASSES[selectedShipForAbilities]).abilities;
-
-    // Check ability 1 click using exact same area as drawn
     const ability1X = canvas.width * 3/4 - abilityWidth/2;
     const ability1Y = 100;
     if (mouseX >= ability1X && mouseX <= ability1X + abilityWidth &&
         mouseY >= ability1Y && mouseY <= ability1Y + abilityHeight) {
-        handleAbilityUnlock(shipClass.name, 1);
+        const shipAbilities = new Player(SHIP_CLASSES[selectedShipForAbilities]).abilities;
+        tryUnlockAbility(shipAbilities.ability1, false);
         return;
     }
 
-    // Check ability 2 click using exact same area as drawn
     const ability2X = canvas.width * 3/4 - abilityWidth/2;
     const ability2Y = ability1Y + abilityHeight + abilitySpacing;
     if (mouseX >= ability2X && mouseX <= ability2X + abilityWidth &&
         mouseY >= ability2Y && mouseY <= ability2Y + abilityHeight) {
-        handleAbilityUnlock(shipClass.name, 2);
+        const shipAbilities = new Player(SHIP_CLASSES[selectedShipForAbilities]).abilities;
+        tryUnlockAbility(shipAbilities.ability2, true);
         return;
     }
 }

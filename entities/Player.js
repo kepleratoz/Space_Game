@@ -1159,6 +1159,24 @@ class Player {
         
         let energyCost = this.shootCost;
         
+        // For Rammer, perform a dash instead of shooting
+        if (this.shipClass.name === 'Rammer') {
+            if (!this.isDashing && this.energy >= energyCost) {
+                this.isDashing = true;
+                this.dashDuration = this.maxDashDuration;
+                
+                // Apply dash velocity with level scaling
+                const scaledDashSpeed = this.chargedDashSpeed * (1 + this.upgradeLevel * 0.15); // 15% increase per level
+                this.velocityX = Math.cos(this.rotation) * scaledDashSpeed;
+                this.velocityY = Math.sin(this.rotation) * scaledDashSpeed;
+                
+                // Consume energy
+                this.energy -= energyCost;
+                this.shootCooldown = this.maxShootCooldown;
+            }
+            return;
+        }
+        
         // Get the correct rotation based on mode
         let shootRotation = this.rotation;
         if (this.shipClass.name === 'Sniper' && this.isViewportMode) {

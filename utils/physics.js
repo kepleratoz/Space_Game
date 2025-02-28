@@ -294,7 +294,7 @@ function handleCollisions() {
                 
                 // Scale damage based on relative speed, capped at 2x
                 const speedMultiplier = Math.min(2, 1 + (relativeSpeed / player.maxSpeed));
-                const finalDamage = baseDamage * speedMultiplier;
+                const finalDamage = Math.max(1, Math.round(baseDamage * speedMultiplier));
                 
                 const isRamming = player.shipClass.name === 'Rammer' && (player.isDashing || velocityMagnitude > player.maxSpeed * 0.5);
                 const oldPlayerHealth = player.health;
