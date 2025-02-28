@@ -41,6 +41,13 @@ class Player {
         this.mouseControls = true;
         this.damageMultiplier = 1;
 
+        // Add drift properties for Speedster and Assault Fighter
+        if (shipClass.name === 'Speedster' || shipClass.name === 'Assault Fighter') {
+            this.isDrifting = false;
+            this.driftFriction = 0.995; // Very low friction when drifting
+            this.driftMaxSpeed = shipClass.name === 'Speedster' ? this.maxSpeed * 1.2 : this.maxSpeed * 1.1;
+        }
+
         // Add ability system
         this.abilities = {
             ability1: {
@@ -713,22 +720,72 @@ class Player {
         // Apply rotation
         this.rotation += this.rotationalVelocity;
         
-        // Forward movement with either W or ArrowUp
-        if (keys['w'] || keys['W'] || keys['ArrowUp']) {
-            this.velocityX += Math.cos(this.rotation) * this.acceleration;
-            this.velocityY += Math.sin(this.rotation) * this.acceleration;
-        }
+        // Handle drifting for Speedster and Assault Fighter
+        if ((this.shipClass.name === 'Speedster' || this.shipClass.name === 'Assault Fighter')) {
+            // Toggle drift state when Control is pressed
+            if (keys['Control'] || keys['Meta']) {
+                if (!this.lastDriftKeyState) {
+                    this.isDrifting = !this.isDrifting;
+                    if (this.isDrifting) {
+                        showNotification('Drift Mode: ON');
+                    } else {
+                        showNotification('Drift Mode: OFF');
+                    }
+                }
+                this.lastDriftKeyState = true;
+            } else {
+                this.lastDriftKeyState = false;
+            }
+            
+            // Apply forward movement in ship's facing direction
+            if (keys['w'] || keys['W'] || keys['ArrowUp']) {
+                this.velocityX += Math.cos(this.rotation) * this.acceleration;
+                this.velocityY += Math.sin(this.rotation) * this.acceleration;
+            }
+            
+            // Apply appropriate friction based on drift state
+            if (this.isDrifting) {
+                this.velocityX *= this.driftFriction;
+                this.velocityY *= this.driftFriction;
+                
+                // Apply drift speed limit
+                const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+                if (speed > this.driftMaxSpeed) {
+                    const ratio = this.driftMaxSpeed / speed;
+                    this.velocityX *= ratio;
+                    this.velocityY *= ratio;
+                }
+            } else {
+                // Normal physics when not drifting
+                this.velocityX *= FRICTION;
+                this.velocityY *= FRICTION;
+                
+                // Normal speed limit
+                const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+                if (speed > this.maxSpeed) {
+                    const ratio = this.maxSpeed / speed;
+                    this.velocityX *= ratio;
+                    this.velocityY *= ratio;
+                }
+            }
+        } else {
+            // Normal movement for other ships
+            if (keys['w'] || keys['W'] || keys['ArrowUp']) {
+                this.velocityX += Math.cos(this.rotation) * this.acceleration;
+                this.velocityY += Math.sin(this.rotation) * this.acceleration;
+            }
 
-        // Apply physics
-        this.velocityX *= FRICTION;
-        this.velocityY *= FRICTION;
+            // Apply normal physics
+            this.velocityX *= FRICTION;
+            this.velocityY *= FRICTION;
 
-        // Limit speed
-        const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
-        if (speed > this.maxSpeed) {
-            const ratio = this.maxSpeed / speed;
-            this.velocityX *= ratio;
-            this.velocityY *= ratio;
+            // Normal speed limit
+            const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+            if (speed > this.maxSpeed) {
+                const ratio = this.maxSpeed / speed;
+                this.velocityX *= ratio;
+                this.velocityY *= ratio;
+            }
         }
 
         // Update position
@@ -1191,28 +1248,28 @@ class Player {
             if (this.energy >= energyCost) {
                 switch(this.upgradeLevel) {
                     case 0: // Level 1 - Base pattern
-                        this.createLaser(this.rotation, 1);
-                        this.createLaser(this.rotation - 0.1, 0.8);
-                        this.createLaser(this.rotation + 0.1, 0.8);
+                        this.createLaser(this.rotation, 1, 1, this.x, this.y, 7.5); // Was 10 (base damage)
+                        this.createLaser(this.rotation - 0.1, 0.8, 1, this.x, this.y, 6); // Was 8 (0.8 size multiplier)
+                        this.createLaser(this.rotation + 0.1, 0.8, 1, this.x, this.y, 6); // Was 8 (0.8 size multiplier)
                         break;
                     case 1: // Level 2 - Two piercing lasers
-                        this.createLaser(this.rotation - 0.05, 1, 1, this.x, this.y, 12, 2);
-                        this.createLaser(this.rotation + 0.05, 1, 1, this.x, this.y, 12, 2);
+                        this.createLaser(this.rotation - 0.05, 1, 1, this.x, this.y, 9, 2); // Was 12
+                        this.createLaser(this.rotation + 0.05, 1, 1, this.x, this.y, 9, 2); // Was 12
                         break;
                     case 2: // Level 3 - One big laser and two small piercing lasers
-                        this.createLaser(this.rotation, 1.5, 1, this.x, this.y, 23, 1); // Big central laser
-                        this.createLaser(this.rotation - 0.15, 0.8, 1, this.x, this.y, 8, 3); // Small piercing lasers
-                        this.createLaser(this.rotation + 0.15, 0.8, 1, this.x, this.y, 8, 3);
+                        this.createLaser(this.rotation, 1.5, 1, this.x, this.y, 17, 1); // Was 23
+                        this.createLaser(this.rotation - 0.15, 0.8, 1, this.x, this.y, 6, 3); // Was 8
+                        this.createLaser(this.rotation + 0.15, 0.8, 1, this.x, this.y, 6, 3); // Was 8
                         break;
                     case 3:
                     case 4:
-                        // Center three bullets (20 damage)
-                        this.createLaser(this.rotation, 1.2, 1, this.x, this.y, 20, 2);
-                        this.createLaser(this.rotation - 0.1, 1.2, 1, this.x, this.y, 20, 2);
-                        this.createLaser(this.rotation + 0.1, 1.2, 1, this.x, this.y, 20, 2);
-                        // Side bullets (6 damage)
-                        this.createLaser(this.rotation - 0.2, 1, 1, this.x, this.y, 6, 2);
-                        this.createLaser(this.rotation + 0.2, 1, 1, this.x, this.y, 6, 2);
+                        // Center three bullets (15 damage, was 20)
+                        this.createLaser(this.rotation, 1.2, 1, this.x, this.y, 15, 2);
+                        this.createLaser(this.rotation - 0.1, 1.2, 1, this.x, this.y, 15, 2);
+                        this.createLaser(this.rotation + 0.1, 1.2, 1, this.x, this.y, 15, 2);
+                        // Side bullets (4.5 damage, was 6)
+                        this.createLaser(this.rotation - 0.2, 1, 1, this.x, this.y, 4.5, 2);
+                        this.createLaser(this.rotation + 0.2, 1, 1, this.x, this.y, 4.5, 2);
                         break;
                 }
                 this.energy -= energyCost;
@@ -1429,6 +1486,11 @@ class Player {
         // Apply damage reduction for Rammer's Fortify ability
         if (this.shipClass.name === 'Rammer' && this.abilities.ability2.active) {
             amount *= (1 - this.damageReduction);
+        }
+        
+        // Apply contact damage reduction for Assault Fighter
+        if (isRam && this.shipClass.name === 'Assault Fighter' && this.shipClass.contactDamageReduction) {
+            amount = Math.max(1, amount - this.shipClass.contactDamageReduction);
         }
         
         this.health -= amount;
