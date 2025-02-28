@@ -207,53 +207,8 @@ canvas.addEventListener('click', (e) => {
             return;
         }
 
-        // Handle ship selection
-        const classes = Object.entries(SHIP_CLASSES);
-        const spacing = canvas.width / (classes.length + 1);
-        
-        classes.forEach(([className, stats], index) => {
-            const x = spacing * (index + 1);
-            const y = canvas.height/2 - 100; // Match startY from drawClassSelection
-            const width = 100;
-            const height = 100;
-            
-            if (e.clientX > x - width/2 && e.clientX < x + width/2 &&
-                e.clientY > y - height/2 && e.clientY < y + height/2) {
-                if (isShipUnlocked(stats.name)) {
-                    console.log('Ship selected:', stats.name); // Debug log
-                    selectedShipClass = className;
-                    selectedClass = { ...stats }; // Create a copy to avoid modifying original
-                    selectedClass.archetype = null;
-                    console.log('selectedClass set to:', selectedClass); // Debug log
-                    showNotification(`Selected ${stats.name}`, 'success');
-                } else {
-                    // Check if clicking the unlock button
-                    const unlockBtnWidth = 80;
-                    const unlockBtnHeight = 30;
-                    const btnX = x - unlockBtnWidth/2;
-                    const btnY = y + 10;
-
-                    if (e.clientX >= btnX && e.clientX <= btnX + unlockBtnWidth &&
-                        e.clientY >= btnY && e.clientY <= btnY + unlockBtnHeight) {
-                        // Handle unlocking with XP
-                        const currentXP = getXP();
-                        if (currentXP >= stats.xpRequired) {
-                            const remainingXP = currentXP - stats.xpRequired;
-                            localStorage.setItem('spaceGameXP', remainingXP);
-                            showNotification(`Unlocked ${stats.name}!`, 'success');
-                            unlockShip(stats.name);
-                            
-                            // Auto-select the newly unlocked ship
-                            selectedShipClass = className;
-                            selectedClass = { ...stats };
-                            selectedClass.archetype = null;
-                        } else {
-                            showNotification(`Need ${stats.xpRequired} XP to unlock ${stats.name}`, 'warning');
-                        }
-                    }
-                }
-            }
-        });
+        // Handle ship selection using handleClassSelectionClick
+        handleClassSelectionClick(e.clientX, e.clientY, false);
     }
 
     // Check pause button click
@@ -468,26 +423,13 @@ canvas.addEventListener('contextmenu', (e) => {
 canvas.addEventListener('mousedown', (e) => {
     if (e.button === 2) { // Right click
         if (gameState === GAME_STATES.CLASS_SELECT) {
-            const classes = Object.entries(SHIP_CLASSES);
-            const spacing = canvas.width / (classes.length + 1);
-            
-            classes.forEach(([key, shipClass], index) => {
-                const x = spacing * (index + 1);
-                const y = canvas.height/2 - 100; // Match startY from drawClassSelection
-                const width = 100;
-                const height = 100;
-                
-                if (e.clientX > x - width/2 && 
-                    e.clientX < x + width/2 && 
-                    e.clientY > y - height/2 && 
-                    e.clientY < y + height/2) {
-                    if (isShipUnlocked(shipClass.name)) {
-                        selectedShipClass = key;
-                        selectedShipForAbilities = key;
-                        showingAbilityUnlockScreen = true;
-                    }
-                }
-            });
+            // Use the same handler for right-clicks, just pass isRightClick as true
+            handleClassSelectionClick(e.clientX, e.clientY, true);
+            e.preventDefault(); // Prevent context menu
+        } else if (gameState === GAME_STATES.PLAYING && player) {
+            // Handle Rammer's charged dash
+            player.handleRightClick();
+            e.preventDefault();
         }
     }
 });
