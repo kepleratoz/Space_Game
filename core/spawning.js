@@ -2,7 +2,7 @@ function spawnObjects() {
     // Wave system variables
     if (typeof window.waveNumber === 'undefined') {
         window.waveNumber = 1;
-        window.enemiesRemainingInWave = Math.min(5 + window.waveNumber * 2, 25);
+        window.enemiesRemainingInWave = 7 + (window.waveNumber - 1) * 2;
         window.waveStartTime = Date.now();
         window.waveTimer = 0;
     }
@@ -32,13 +32,13 @@ function spawnObjects() {
 
         // Start new wave
         window.waveNumber++;
-        window.enemiesRemainingInWave = Math.min(5 + window.waveNumber * 2, 25);
+        window.enemiesRemainingInWave = 7 + (window.waveNumber - 1) * 2;
         window.waveTimer = 300; // 5 seconds between waves
         window.waveStartTime = Date.now();
         
         // Spawn initial wave enemies
         const baseEnemies = Math.floor(window.waveNumber/2);
-        for (let i = 0; i < baseEnemies && enemies.length < 15; i++) {
+        for (let i = 0; i < baseEnemies; i++) {
             spawnEnemy();
         }
         
@@ -55,7 +55,7 @@ function spawnObjects() {
     }
 
     // During wave spawning
-    if (enemies.length < 15 && Math.random() < 0.03 && window.enemiesRemainingInWave > 0) {
+    if (Math.random() < 0.03 && window.enemiesRemainingInWave > 0) {
         spawnEnemy();
         window.enemiesRemainingInWave--;
     }

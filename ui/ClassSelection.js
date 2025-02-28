@@ -684,7 +684,7 @@ function startGame(className, archetype = null) {
     
     // Initialize wave system
     window.waveNumber = 1;
-    window.enemiesRemainingInWave = Math.min(5 + window.waveNumber * 2, 25);
+    window.enemiesRemainingInWave = 7 + (window.waveNumber - 1) * 2;
     window.waveStartTime = Date.now();
     window.waveTimer = 0;
     
