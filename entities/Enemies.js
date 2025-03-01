@@ -786,8 +786,8 @@ class SentryEnemy extends Enemy {
 class AutomatedSentry extends Enemy {
     constructor(x, y) {
         super(x, y);
-        this.width = 40;
-        this.height = 40;
+        this.width = 60; // Increased size (was 40)
+        this.height = 60; // Increased size (was 40)
         this.health = 50;
         this.maxHealth = 50;
         this.damage = 40; // High damage
@@ -796,7 +796,9 @@ class AutomatedSentry extends Enemy {
         this.laserSpeed = 4; // Slower projectiles
         this.laserWidth = 15; // Larger projectiles
         this.laserHeight = 15;
-        this.color = '#8a2be2'; // Deep purple color
+        this.color = '#777777'; // Gray color (was '#8a2be2')
+        this.innerColor = '#555555'; // Darker gray for inner hexagon
+        this.cannonColor = '#333333'; // Dark gray for cannon
         this.maxSpeed = 0; // Stationary
         this.aggroRange = 800;
         this.shootRange = 700;
@@ -805,15 +807,15 @@ class AutomatedSentry extends Enemy {
     }
 
     drawShape(x, y) {
-        // Draw a hexagonal sentry turret
+        // Draw the outer hexagon (big gray hexagon)
         ctx.beginPath();
         const sides = 6;
-        const size = this.width / 2;
+        const outerSize = this.width / 2;
         
         for (let i = 0; i < sides; i++) {
-            const angle = (i * 2 * Math.PI / sides) + this.rotation;
-            const px = x + size * Math.cos(angle);
-            const py = y + size * Math.sin(angle);
+            const angle = (i * 2 * Math.PI / sides);
+            const px = x + outerSize * Math.cos(angle);
+            const py = y + outerSize * Math.sin(angle);
             
             if (i === 0) {
                 ctx.moveTo(px, py);
@@ -823,18 +825,49 @@ class AutomatedSentry extends Enemy {
         }
         
         ctx.closePath();
+        ctx.fillStyle = this.color;
         ctx.fill();
         
-        // Draw a "barrel" pointing in the direction of rotation
+        // Draw the inner hexagon (smaller gray hexagon)
         ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(
-            x + (size + 10) * Math.cos(this.rotation),
-            y + (size + 10) * Math.sin(this.rotation)
-        );
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = '#ffffff';
-        ctx.stroke();
+        const innerSize = outerSize * 0.6; // 60% of the outer size
+        
+        for (let i = 0; i < sides; i++) {
+            const angle = (i * 2 * Math.PI / sides);
+            const px = x + innerSize * Math.cos(angle);
+            const py = y + innerSize * Math.sin(angle);
+            
+            if (i === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        
+        ctx.closePath();
+        ctx.fillStyle = this.innerColor;
+        ctx.fill();
+        
+        // Draw the cannon that aims at the player
+        ctx.save();
+        ctx.rotate(this.rotation); // Rotate to aim at player
+        
+        // Cannon base (circle) - BIGGER now
+        ctx.beginPath();
+        ctx.arc(x, y, innerSize * 0.6, 0, Math.PI * 2); // Increased from 0.4 to 0.6
+        ctx.fillStyle = this.cannonColor;
+        ctx.fill();
+        
+        // Cannon barrel - WIDER now
+        ctx.beginPath();
+        const barrelWidth = 14; // Increased from 8 to 14
+        const barrelLength = outerSize * 0.8;
+        
+        // Draw the barrel as a rectangle
+        ctx.fillStyle = this.cannonColor;
+        ctx.fillRect(x, y - barrelWidth/2, barrelLength, barrelWidth);
+        
+        ctx.restore();
     }
 
     behavior() {
@@ -875,18 +908,41 @@ class AutomatedSentry extends Enemy {
         const velocityX = Math.cos(this.rotation) * this.laserSpeed;
         const velocityY = Math.sin(this.rotation) * this.laserSpeed;
         
-        // Create the projectile
+        // Create the projectile - now from the end of the cannon
+        const barrelLength = this.width/2 * 0.8;
         enemyProjectiles.push({
-            x: this.x + Math.cos(this.rotation) * (this.width/2 + 5),
-            y: this.y + Math.sin(this.rotation) * (this.width/2 + 5),
+            x: this.x + Math.cos(this.rotation) * (barrelLength + 10),
+            y: this.y + Math.sin(this.rotation) * (barrelLength + 10),
             width: this.laserWidth,
             height: this.laserWidth,
             velocityX: velocityX,
             velocityY: velocityY,
             damage: this.damage,
             angle: this.rotation,
-            color: '#8a2be2' // Match sentry color
+            color: '#555555' // Match the gray color scheme
         });
+    }
+
+    draw() {
+        const screenX = this.x - camera.x;
+        const screenY = this.y - camera.y;
+        
+        // Only draw if on screen
+        if (screenX + this.width < 0 || screenX - this.width > canvas.width ||
+            screenY + this.height < 0 || screenY - this.height > canvas.height) {
+            return;
+        }
+
+        ctx.save();
+        ctx.translate(screenX, screenY);
+        this.drawShape(0, 0);
+        ctx.restore();
+
+        // Check if mouse is hovering over this enemy
+        if (Math.abs(mouse.x - screenX) < this.width/2 && 
+            Math.abs(mouse.y - screenY) < this.height/2) {
+            this.drawTooltip(screenX, screenY);
+        }
     }
 }
 

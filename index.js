@@ -153,6 +153,27 @@ function gameLoop() {
             if (typeof player.updateLasers === 'function') {
                 player.updateLasers();
             }
+            
+            // Add collision detection with zone boundaries
+            if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+                // Simple approach: check if player is inside the boundary
+                const playerPoint = { x: player.x, y: player.y };
+                
+                if (!isPointInsidePolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS)) {
+                    // Find the previous valid position (before collision)
+                    // This is a simple approach that works reliably
+                    const prevX = player.x - player.speedX;
+                    const prevY = player.y - player.speedY;
+                    
+                    // Move player back to previous position
+                    player.x = prevX;
+                    player.y = prevY;
+                    
+                    // Stop player movement in this direction
+                    player.speedX = 0;
+                    player.speedY = 0;
+                }
+            }
         }
 
         // Update gems
@@ -934,17 +955,87 @@ function storeShipData() {
     };
 }
 
+// Initialize debris particles with persistent positions if they don't exist
+if (!window.debrisParticles) {
+    window.debrisParticles = [];
+    for (let i = 0; i < 50; i++) {
+        // Assign a random color from the new color palette
+        const colorType = Math.random();
+        let particleColor;
+        if (colorType < 0.4) {
+            particleColor = '#3a3a45'; // Grayish
+        } else if (colorType < 0.7) {
+            particleColor = '#5e4a2e'; // Yellow-brown
+        } else {
+            particleColor = '#4a3a5e'; // Purple-ish
+        }
+        
+        // Choose a random direction for consistent movement
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 0.5 + Math.random() * 1.0; // Medium speed between 0.5 and 1.5
+        
+        // Use rectangles with fixed width and height
+        const width = 5 + Math.random() * 15;
+        const height = 5 + Math.random() * 15;
+        
+        window.debrisParticles.push({
+            x: Math.random() * DEBRIS_FIELD.WIDTH,
+            y: Math.random() * DEBRIS_FIELD.HEIGHT,
+            width: width,     // Fixed width
+            height: height,   // Fixed height
+            speedX: Math.cos(angle) * speed, // Consistent direction with medium speed
+            speedY: Math.sin(angle) * speed, // Consistent direction with medium speed
+            color: particleColor
+        });
+    }
+}
+
+// Initialize asteroid shapes with persistent positions if they don't exist
+if (!window.asteroidShapes) {
+    window.asteroidShapes = [];
+    for (let i = 0; i < 20; i++) {
+        // Assign a random color from the new color palette
+        const colorType = Math.random();
+        let asteroidColor;
+        if (colorType < 0.4) {
+            asteroidColor = '#4a4a55'; // Grayish
+        } else if (colorType < 0.7) {
+            asteroidColor = '#6e5a3e'; // Yellow-brown
+        } else {
+            asteroidColor = '#5a4a6e'; // Purple-ish
+        }
+        
+        window.asteroidShapes.push({
+            x: Math.random() * DEBRIS_FIELD.WIDTH,
+            y: Math.random() * DEBRIS_FIELD.HEIGHT,
+            size: 15 + Math.random() * 30, // Slightly smaller
+            sides: 5 + Math.floor(Math.random() * 3),
+            angleOffset: Math.random() * Math.PI * 2,
+            speedX: (Math.random() - 0.5) * 0.2, // Slow horizontal movement
+            speedY: (Math.random() - 0.5) * 0.2, // Slow vertical movement
+            rotationSpeed: (Math.random() - 0.5) * 0.01, // Slow rotation
+            color: asteroidColor
+        });
+    }
+}
+
 // Draw the Debris Field background
 function drawDebrisFieldBackground() {
-    // Fill the entire visible area with dark blue background
-    ctx.fillStyle = DEBRIS_FIELD.BACKGROUND_COLOR;
+    // Fill the entire visible area with dark blue background (slightly modified to be more grayish)
+    ctx.fillStyle = '#1a1a25'; // Modified from '#1a1a2e' to be more grayish
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
     
-    // Draw the irregular boundary walls
-    ctx.fillStyle = DEBRIS_FIELD.WALL_COLOR;
+    // Draw the irregular boundary walls with a gradient pattern
+    const wallGradient = ctx.createLinearGradient(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
+    wallGradient.addColorStop(0, '#4a4a55');    // Grayish
+    wallGradient.addColorStop(0.3, '#6e5a3e');  // Yellow-brown
+    wallGradient.addColorStop(0.6, '#5a4a6e');  // Purple-ish
+    wallGradient.addColorStop(1, '#4a4a55');    // Back to grayish
+    
+    ctx.fillStyle = wallGradient;
     ctx.beginPath();
     
     // Draw outer boundary
@@ -977,38 +1068,76 @@ function drawDebrisFieldBackground() {
     ctx.closePath();
     ctx.clip();
     
-    // Fill the inner area with the background color
-    ctx.fillStyle = DEBRIS_FIELD.BACKGROUND_COLOR;
+    // Fill the inner area with the background color (slightly modified to be more grayish)
+    ctx.fillStyle = '#1a1a25'; // Modified from '#1a1a2e' to be more grayish
     ctx.fillRect(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
     
-    // Draw some debris and asteroids in the background for visual interest
-    ctx.fillStyle = '#2a2a4a';
-    for (let i = 0; i < 50; i++) {
+    // Add some subtle texture to the background
+    ctx.globalAlpha = 0.1;
+    for (let i = 0; i < 100; i++) {
         const x = Math.random() * DEBRIS_FIELD.WIDTH;
         const y = Math.random() * DEBRIS_FIELD.HEIGHT;
-        const size = 5 + Math.random() * 20;
+        const size = 1 + Math.random() * 3;
+        
+        // Random color from our palette
+        const colorType = Math.random();
+        if (colorType < 0.4) {
+            ctx.fillStyle = '#4a4a55'; // Grayish
+        } else if (colorType < 0.7) {
+            ctx.fillStyle = '#6e5a3e'; // Yellow-brown
+        } else {
+            ctx.fillStyle = '#5a4a6e'; // Purple-ish
+        }
         
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fill();
     }
+    ctx.globalAlpha = 1.0;
     
-    // Draw some larger asteroid-like shapes
-    ctx.fillStyle = '#3a3a5a';
-    for (let i = 0; i < 20; i++) {
-        const x = Math.random() * DEBRIS_FIELD.WIDTH;
-        const y = Math.random() * DEBRIS_FIELD.HEIGHT;
-        const size = 20 + Math.random() * 40;
+    // Update and draw debris particles
+    window.debrisParticles.forEach(particle => {
+        // Update position
+        particle.x += particle.speedX;
+        particle.y += particle.speedY;
         
+        // Wrap around if out of bounds
+        if (particle.x < 0) particle.x = DEBRIS_FIELD.WIDTH;
+        if (particle.x > DEBRIS_FIELD.WIDTH) particle.x = 0;
+        if (particle.y < 0) particle.y = DEBRIS_FIELD.HEIGHT;
+        if (particle.y > DEBRIS_FIELD.HEIGHT) particle.y = 0;
+        
+        // Draw particle as a rectangle with fixed dimensions
+        ctx.fillStyle = particle.color;
+        ctx.fillRect(
+            particle.x - particle.width/2, 
+            particle.y - particle.height/2, 
+            particle.width, 
+            particle.height
+        );
+    });
+    
+    // Update and draw asteroid shapes
+    window.asteroidShapes.forEach(asteroid => {
+        // Update position
+        asteroid.x += asteroid.speedX;
+        asteroid.y += asteroid.speedY;
+        asteroid.angleOffset += asteroid.rotationSpeed;
+        
+        // Wrap around if out of bounds
+        if (asteroid.x < 0) asteroid.x = DEBRIS_FIELD.WIDTH;
+        if (asteroid.x > DEBRIS_FIELD.WIDTH) asteroid.x = 0;
+        if (asteroid.y < 0) asteroid.y = DEBRIS_FIELD.HEIGHT;
+        if (asteroid.y > DEBRIS_FIELD.HEIGHT) asteroid.y = 0;
+        
+        // Draw asteroid with its color
+        ctx.fillStyle = asteroid.color;
         ctx.beginPath();
-        const sides = 5 + Math.floor(Math.random() * 3);
-        const angleOffset = Math.random() * Math.PI * 2;
-        
-        for (let j = 0; j < sides; j++) {
-            const angle = angleOffset + j * 2 * Math.PI / sides;
-            const radius = size * (0.8 + Math.random() * 0.4);
-            const px = x + radius * Math.cos(angle);
-            const py = y + radius * Math.sin(angle);
+        for (let j = 0; j < asteroid.sides; j++) {
+            const angle = asteroid.angleOffset + j * 2 * Math.PI / asteroid.sides;
+            const radius = asteroid.size * (0.8 + Math.random() * 0.4);
+            const px = asteroid.x + radius * Math.cos(angle);
+            const py = asteroid.y + radius * Math.sin(angle);
             
             if (j === 0) {
                 ctx.moveTo(px, py);
@@ -1016,10 +1145,9 @@ function drawDebrisFieldBackground() {
                 ctx.lineTo(px, py);
             }
         }
-        
         ctx.closePath();
         ctx.fill();
-    }
+    });
     
     // Draw return portal to station
     const returnX = 100;
@@ -1107,47 +1235,8 @@ function checkCollisions() {
         }
         if (player.y - player.radius < WALL_WIDTH) player.y = WALL_WIDTH + player.radius;
         if (player.y + player.radius > STATION.HEIGHT - WALL_WIDTH) player.y = STATION.HEIGHT - WALL_WIDTH - player.radius;
-    } else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
-        // Debris Field boundary collision - using polygon collision detection
-        const playerPoint = { x: player.x, y: player.y };
-        
-        // Check if player is inside the debris field
-        if (!isPointInsidePolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS)) {
-            // Find the closest point on the polygon boundary
-            const closestPoint = findClosestPointOnPolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS);
-            
-            // Push player back inside
-            const dx = playerPoint.x - closestPoint.x;
-            const dy = playerPoint.y - closestPoint.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < player.radius) {
-                // Calculate how far to push the player
-                const pushDistance = player.radius - distance;
-                const angle = Math.atan2(dy, dx);
-                
-                // Push player away from wall
-                player.x += Math.cos(angle) * pushDistance;
-                player.y += Math.sin(angle) * pushDistance;
-            }
-        }
-        
-        // Also check for laser collisions with debris field walls
-        for (let i = lasers.length - 1; i >= 0; i--) {
-            const laser = lasers[i];
-            if (!isPointInsidePolygon({ x: laser.x, y: laser.y }, DEBRIS_FIELD.WALL_POINTS)) {
-                lasers.splice(i, 1);
-            }
-        }
-        
-        // Check enemy projectiles collision with walls
-        for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
-            const projectile = enemyProjectiles[i];
-            if (!isPointInsidePolygon({ x: projectile.x, y: projectile.y }, DEBRIS_FIELD.WALL_POINTS)) {
-                enemyProjectiles.splice(i, 1);
-            }
-        }
     }
+    // Debris Field collision is now handled in the main game loop for more responsive collision detection
     
     // ... existing code ...
 }
