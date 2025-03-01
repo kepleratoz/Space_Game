@@ -35,7 +35,9 @@ window.addEventListener('mousedown', (e) => {
                 });
             } else if (gameState === GAME_STATES.PLAYING && player) {
                 // Handle Rammer's charged dash
-                player.handleRightClick();
+                if (typeof player.handleRightClick === 'function') {
+                    player.handleRightClick();
+                }
             }
             e.preventDefault(); // Prevent context menu
             break;
@@ -260,7 +262,7 @@ canvas.addEventListener('click', (e) => {
         }
         
         // Handle player shooting
-        if (player && player.canShoot()) {
+        if (player && typeof player.canShoot === 'function' && player.canShoot()) {
             player.shoot();
         }
     }
@@ -280,7 +282,9 @@ canvas.addEventListener('mousedown', (e) => {
             e.preventDefault(); // Prevent context menu
         } else if (gameState === GAME_STATES.PLAYING && player) {
             // Handle Rammer's charged dash
-            player.handleRightClick();
+            if (typeof player.handleRightClick === 'function') {
+                player.handleRightClick();
+            }
             e.preventDefault();
         }
     }
@@ -298,5 +302,50 @@ function isClickOnSettingsButton(mouseX, mouseY) {
            mouseY >= y && mouseY <= y + buttonSize;
 }
 
-// Make the function globally available
+// Add the missing handlePauseScreenClick function
+function handlePauseScreenClick(mouseX, mouseY) {
+    // Get the resume button dimensions from the drawPauseScreen function
+    const resumeBtn = {
+        x: canvas.width/2 - 150,
+        y: canvas.height/2 - 50,
+        width: 300,
+        height: 50
+    };
+    
+    // Check if click is on resume button
+    if (mouseX >= resumeBtn.x && mouseX <= resumeBtn.x + resumeBtn.width &&
+        mouseY >= resumeBtn.y && mouseY <= resumeBtn.y + resumeBtn.height) {
+        // Resume the game
+        gameState = GAME_STATES.PLAYING;
+        isPaused = false;
+        return;
+    }
+    
+    // Get the exit button dimensions from the drawPauseScreen function
+    const exitBtn = {
+        x: canvas.width/2 - 150,
+        y: canvas.height/2 + 20,
+        width: 300,
+        height: 50
+    };
+    
+    // Check if click is on exit button
+    if (mouseX >= exitBtn.x && mouseX <= exitBtn.x + exitBtn.width &&
+        mouseY >= exitBtn.y && mouseY <= exitBtn.y + exitBtn.height) {
+        // Return to main menu or station
+        gameState = GAME_STATES.STATION;
+        isPaused = false;
+        
+        // If player exists, position them in the station
+        if (player) {
+            window.currentZone = GAME_ZONES.STATION;
+            player.x = STATION.WIDTH / 2;
+            player.y = STATION.HEIGHT / 2;
+        }
+        return;
+    }
+}
+
+// Make the functions globally available
 window.isClickOnSettingsButton = isClickOnSettingsButton;
+window.handlePauseScreenClick = handlePauseScreenClick;

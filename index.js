@@ -146,8 +146,14 @@ function gameLoop() {
         }
 
         // Update player and game objects
-        player.update();
-        player.updateLasers();
+        if (player) {
+            if (typeof player.update === 'function') {
+                player.update();
+            }
+            if (typeof player.updateLasers === 'function') {
+                player.updateLasers();
+            }
+        }
 
         // Update gems
         gems.forEach(gem => gem.update());
@@ -234,7 +240,9 @@ function gameLoop() {
     
     // Draw player
     if (player) {
-        player.draw();
+        if (typeof player.draw === 'function') {
+            player.draw();
+        }
     }
     
     // Draw all game objects

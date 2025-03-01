@@ -337,8 +337,8 @@ function drawSettingsMenu() {
 }
 
 function drawShipClassDisplay() {
-    // Only draw ship class display if player exists
-    if (!player) return;
+    // Only draw ship class display if player exists and has shipClass
+    if (!player || !player.shipClass) return;
     
     const margin = 10;
     const padding = 5; // Reduced padding
@@ -371,10 +371,17 @@ function drawShipClassDisplay() {
 function drawGameUI() {
     drawMinimap();
     
-    // Only draw player UI elements if player exists
+    // Only draw player UI elements if player exists and has the required methods
     if (player) {
-        player.drawStatusBars();
-        player.drawAbilityCooldowns();
+        // Check if drawStatusBars method exists before calling it
+        if (typeof player.drawStatusBars === 'function') {
+            player.drawStatusBars();
+        }
+        
+        // Check if drawAbilityCooldowns method exists before calling it
+        if (typeof player.drawAbilityCooldowns === 'function') {
+            player.drawAbilityCooldowns();
+        }
     }
     
     drawDebugInfo();

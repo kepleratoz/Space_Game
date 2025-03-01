@@ -274,14 +274,16 @@ function handleCollisions() {
                 }
 
                 // If player is Rammer, apply contact damage to asteroid
-                if (player.shipClass.name === 'Rammer') {
-                    const contactDamage = player.calculateContactDamage();
-                    const oldAsteroidHealth = object.health;
-                    // Asteroids take double damage from ramming to make them more satisfying to destroy
-                    object.health -= contactDamage * 2;
-                    const actualDamage = oldAsteroidHealth - object.health;
-                    if (actualDamage > 0) {
-                        damageNumbers.push(new DamageNumber(object.x, object.y, actualDamage, '#ff4242')); // Rammer damage in red
+                if (player.shipClass && player.shipClass.name === 'Rammer') {
+                    if (typeof player.calculateContactDamage === 'function') {
+                        const contactDamage = player.calculateContactDamage();
+                        const oldAsteroidHealth = object.health;
+                        // Asteroids take double damage from ramming to make them more satisfying to destroy
+                        object.health -= contactDamage * 2;
+                        const actualDamage = oldAsteroidHealth - object.health;
+                        if (actualDamage > 0) {
+                            damageNumbers.push(new DamageNumber(object.x, object.y, actualDamage, '#ff4242')); // Rammer damage in red
+                        }
                     }
                     
                     // Check if asteroid was destroyed
@@ -332,13 +334,15 @@ function handleCollisions() {
                 }
 
                 // If player is Rammer, apply contact damage to enemy
-                if (player.shipClass.name === 'Rammer') {
-                    const contactDamage = player.calculateContactDamage();
-                    const oldEnemyHealth = object.health;
-                    object.takeDamage(contactDamage, true);
-                    const actualEnemyDamage = oldEnemyHealth - object.health;
-                    if (actualEnemyDamage > 0) {
-                        damageNumbers.push(new DamageNumber(object.x, object.y, actualEnemyDamage, '#ff4242')); // Rammer damage in red
+                if (player.shipClass && player.shipClass.name === 'Rammer') {
+                    if (typeof player.calculateContactDamage === 'function') {
+                        const contactDamage = player.calculateContactDamage();
+                        const oldEnemyHealth = object.health;
+                        object.takeDamage(contactDamage, true);
+                        const actualEnemyDamage = oldEnemyHealth - object.health;
+                        if (actualEnemyDamage > 0) {
+                            damageNumbers.push(new DamageNumber(object.x, object.y, actualEnemyDamage, '#ff4242')); // Rammer damage in red
+                        }
                     }
                     
                     // Check if enemy was destroyed and drop gems
