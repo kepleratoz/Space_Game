@@ -120,8 +120,6 @@ function drawClassSelection() {
         return;
     }
 
-    console.log('Drawing start game button...');
-    
     // Draw a smaller button lower on the screen
     const startGameBtn = {
         x: canvas.width/2 - 100,
@@ -155,7 +153,6 @@ function drawClassSelection() {
     ctx.fillText(displayText, startGameBtn.x + startGameBtn.width/2, startGameBtn.y - 20);
 
     window.startGameBtn = startGameBtn; // Store button coordinates globally
-    console.log('Button drawn at:', startGameBtn);
 }
 
 function drawArchetypeCard(ship, x, y, isBase = false) {
@@ -618,88 +615,62 @@ window.drawArchetypeCard = drawArchetypeCard;
 
 // Add startGame function at the end of the file
 function startGame(className, archetype = null) {
-    // Convert className to uppercase to match SHIP_CLASSES keys
-    const classKey = className.toUpperCase();
+    // Create player with selected ship class
+    const shipClass = SHIP_CLASSES[className];
     
-    // Get the base class configuration
-    const baseClass = SHIP_CLASSES[classKey];
-    if (!baseClass) {
-        console.error('Invalid ship class:', className);
-        return;
-    }
-    
-    // Create the final ship configuration
-    let finalShipConfig;
-    if (archetype) {
-        finalShipConfig = {
-            ...baseClass,  // Start with all base class properties
-            ...archetype,  // Override with archetype properties
-            // Ensure critical properties are set
-            name: archetype.name || baseClass.name,
-            abilities: baseClass.abilities,
-            energyScaling: baseClass.energyScaling,
-            healthRegen: archetype.healthRegen || baseClass.healthRegen || 0.08,
-            rotationalAcceleration: archetype.rotationalAcceleration || baseClass.rotationalAcceleration,
-            shootCost: archetype.shootCost || baseClass.shootCost,
-            maxShootCooldown: archetype.maxShootCooldown || baseClass.maxShootCooldown,
-            color: archetype.color || baseClass.color,
-            // Add any missing properties
-            width: baseClass.width || 30,
-            height: baseClass.height || 30
-        };
+    // Check if we're coming from the station and have stored ship levels
+    if (window.currentZone === GAME_ZONES.STATION && window.shipLevels && window.shipLevels[shipClass.name]) {
+        // Create player with the stored level
+        player = new Player(shipClass);
+        player.upgradeLevel = window.shipLevels[shipClass.name].upgradeLevel;
+        player.gems = window.shipLevels[shipClass.name].gems;
+        
+        // Return to station
+        gameState = GAME_STATES.STATION;
+        showNotification(`Switched to ${shipClass.name} ship!`);
     } else {
-        finalShipConfig = { ...baseClass };
+        // Reset game state first
+        if (typeof window.resetGameState === 'function') {
+            window.resetGameState();
+        } else {
+            // Fallback if resetGameState is not available
+            enemies = [];
+            asteroids = [];
+            healthPacks = [];
+            gems = [];
+            enemyProjectiles = [];
+            gameOver = false;
+            isPaused = false;
+            score = 0;
+        }
+        
+        // Normal game start - create player after reset
+        player = new Player(shipClass);
+        
+        // Apply archetype if selected
+        if (archetype && shipClass.archetypes && shipClass.archetypes[archetype]) {
+            player.applyArchetype(shipClass.archetypes[archetype]);
+        }
+        
+        // Start in testing zone
+        window.currentZone = GAME_ZONES.TESTING;
+        window.enemiesKilledInTestingZone = 0;
+        
+        // Generate testing zone lines if the function is available
+        if (typeof window.generateTestingZoneLines === 'function') {
+            window.generateTestingZoneLines();
+        }
+        
+        // Position player in center of testing zone
+        player.x = TESTING_ZONE.WIDTH / 2;
+        player.y = TESTING_ZONE.HEIGHT / 2;
+        
+        // Set camera to follow player
+        camera.follow(player);
+        
+        // Change game state to playing
+        gameState = GAME_STATES.PLAYING;
     }
-    
-    // Log the ship configuration for debugging
-    console.log('Starting game with ship config:', finalShipConfig);
-    
-    // Initialize game state
-    player = null; // Clear existing player first
-    enemies = [];
-    asteroids = [];
-    healthPacks = [];
-    gems = [];
-    enemyProjectiles = [];
-    gameOver = false;
-    score = 0;
-    
-    // Reset mouse state instead of reassigning
-    mouse.x = 0;
-    mouse.y = 0;
-    mouse.isDown = false;
-    mouse.rightDown = false;
-    mouse.middleDown = false;
-    
-    // Reset keys
-    Object.keys(keys).forEach(key => delete keys[key]);
-    
-    // Create new player with the configuration
-    player = new Player(finalShipConfig);
-    
-    // Initialize camera
-    camera.follow(player);
-    camera.x = player.x - canvas.width / 2;
-    camera.y = player.y - canvas.height / 2;
-    
-    // Initialize wave system
-    window.waveNumber = 1;
-    window.enemiesRemainingInWave = 7 + (window.waveNumber - 1) * 2;
-    window.waveStartTime = Date.now();
-    window.waveTimer = 0;
-    
-    // Set game state AFTER initializing everything
-    gameState = GAME_STATES.PLAYING;
-    isPaused = false;
-    
-    // Increment games played when starting a new game
-    incrementGamesPlayed(finalShipConfig.name);
-    
-    // Reset selection state
-    selectedClass = null;
-    selectedShipClass = null;
-    selectedShipForAbilities = null;
-    showingAbilityUnlockScreen = false;
 }
 
 // Make startGame globally available

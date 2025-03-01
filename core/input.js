@@ -108,7 +108,7 @@ window.addEventListener('keydown', (e) => {
             // Handle the action
             switch(action) {
                 case 'pause':
-                    if (gameState !== GAME_STATES.CLASS_SELECT && gameState !== GAME_STATES.GAME_OVER) {
+                    if (gameState !== GAME_STATES.CLASS_SELECT && gameState !== GAME_STATES.GAME_OVER && gameState !== GAME_STATES.STATION) {
                         gameState = gameState === GAME_STATES.PLAYING ? GAME_STATES.PAUSED : GAME_STATES.PLAYING;
                         isPaused = gameState === GAME_STATES.PAUSED;
                     }
@@ -170,6 +170,11 @@ window.addEventListener('keydown', (e) => {
                 window.isFrozen = !window.isFrozen;
                 showNotification(window.isFrozen ? 'Enemies Frozen' : 'Enemies Unfrozen');
                 break;
+            case 'j':
+            case 'J':
+                window.enemiesKilledInTestingZone = (window.enemiesKilledInTestingZone || 0) + 2;
+                showNotification('+2 Kills');
+                break;
         }
     }
 });
@@ -197,7 +202,6 @@ canvas.addEventListener('click', (e) => {
 
         if (e.clientX >= startGameBtn.x && e.clientX <= startGameBtn.x + startGameBtn.width &&
             e.clientY >= startGameBtn.y && e.clientY <= startGameBtn.y + startGameBtn.height) {
-            console.log('Start game button clicked');
             if (selectedClass) {
                 startGame(selectedShipClass, selectedClass.archetype || null);
             } else {

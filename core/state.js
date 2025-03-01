@@ -110,6 +110,9 @@ function resetGameState() {
     enemyProjectiles = [];
 }
 
+// Make resetGameState globally available
+window.resetGameState = resetGameState;
+
 function initializeWaveSystem() {
     window.waveNumber = 1;
     window.enemiesRemainingInWave = 5;

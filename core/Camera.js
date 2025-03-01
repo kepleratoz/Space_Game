@@ -15,9 +15,20 @@ class Camera {
             this.x += (this.target.x - canvas.width/2 - this.x) * 0.1;
             this.y += (this.target.y - canvas.height/2 - this.y) * 0.1;
             
-            // Keep camera within world bounds
-            this.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, this.x));
-            this.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, this.y));
+            // Keep camera within world bounds based on current zone
+            if (window.currentZone === GAME_ZONES.TESTING) {
+                // Testing zone boundaries
+                this.x = Math.max(0, Math.min(TESTING_ZONE.WIDTH - canvas.width, this.x));
+                this.y = Math.max(0, Math.min(TESTING_ZONE.HEIGHT - canvas.height, this.y));
+            } else if (window.currentZone === GAME_ZONES.STATION) {
+                // Station zone boundaries
+                this.x = Math.max(0, Math.min(STATION.WIDTH - canvas.width, this.x));
+                this.y = Math.max(0, Math.min(STATION.HEIGHT - canvas.height, this.y));
+            } else {
+                // Main game world boundaries
+                this.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, this.x));
+                this.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, this.y));
+            }
         }
     }
 }

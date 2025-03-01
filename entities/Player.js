@@ -792,21 +792,30 @@ class Player {
         this.x += this.velocityX;
         this.y += this.velocityY;
 
-        // World boundaries with smoother collision
-        if (this.x < 0) {
-            this.x = 0;
-            this.velocityX *= -0.5;
-        } else if (this.x > WORLD_WIDTH) {
-            this.x = WORLD_WIDTH;
-            this.velocityX *= -0.5;
+        // Handle wall collisions in testing zone or station
+        if (window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION) {
+            if (typeof handleWallCollisions === 'function') {
+                handleWallCollisions(this);
+            }
         }
-        
-        if (this.y < 0) {
-            this.y = 0;
-            this.velocityY *= -0.5;
-        } else if (this.y > WORLD_HEIGHT) {
-            this.y = WORLD_HEIGHT;
-            this.velocityY *= -0.5;
+
+        // World boundaries with smoother collision (only for main game)
+        if (window.currentZone === GAME_ZONES.MAIN) {
+            if (this.x < 0) {
+                this.x = 0;
+                this.velocityX *= -0.5;
+            } else if (this.x > WORLD_WIDTH) {
+                this.x = WORLD_WIDTH;
+                this.velocityX *= -0.5;
+            }
+            
+            if (this.y < 0) {
+                this.y = 0;
+                this.velocityY *= -0.5;
+            } else if (this.y > WORLD_HEIGHT) {
+                this.y = WORLD_HEIGHT;
+                this.velocityY *= -0.5;
+            }
         }
 
         // Update camera to follow player smoothly (with less padding)
@@ -816,9 +825,17 @@ class Player {
         camera.x += (targetCameraX - camera.x) * 0.2; // Increased from 0.1 to 0.2
         camera.y += (targetCameraY - camera.y) * 0.2;
         
-        // Camera bounds
-        camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, camera.x));
-        camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, camera.y));
+        // Camera bounds based on current zone
+        if (window.currentZone === GAME_ZONES.TESTING) {
+            camera.x = Math.max(0, Math.min(TESTING_ZONE.WIDTH - canvas.width, targetCameraX));
+            camera.y = Math.max(0, Math.min(TESTING_ZONE.HEIGHT - canvas.height, targetCameraY));
+        } else if (window.currentZone === GAME_ZONES.STATION) {
+            camera.x = Math.max(0, Math.min(STATION.WIDTH - canvas.width, targetCameraX));
+            camera.y = Math.max(0, Math.min(STATION.HEIGHT - canvas.height, targetCameraY));
+        } else {
+            camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, targetCameraX));
+            camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, targetCameraY));
+        }
 
         // Update invulnerability
         if (this.invulnerable) {
@@ -945,8 +962,17 @@ class Player {
                     const targetCameraX = this.viewportCursorX - canvas.width/2;
                     const targetCameraY = this.viewportCursorY - canvas.height/2;
                     
-                    camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, targetCameraX));
-                    camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, targetCameraY));
+                    // Camera bounds based on current zone
+                    if (window.currentZone === GAME_ZONES.TESTING) {
+                        camera.x = Math.max(0, Math.min(TESTING_ZONE.WIDTH - canvas.width, targetCameraX));
+                        camera.y = Math.max(0, Math.min(TESTING_ZONE.HEIGHT - canvas.height, targetCameraY));
+                    } else if (window.currentZone === GAME_ZONES.STATION) {
+                        camera.x = Math.max(0, Math.min(STATION.WIDTH - canvas.width, targetCameraX));
+                        camera.y = Math.max(0, Math.min(STATION.HEIGHT - canvas.height, targetCameraY));
+                    } else {
+                        camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, targetCameraX));
+                        camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, targetCameraY));
+                    }
                 } else {
                     // If cursor is out of range, move camera to maximum allowed distance in that direction
                     const angle = Math.atan2(this.viewportCursorY - this.y, this.viewportCursorX - this.x);
@@ -956,8 +982,17 @@ class Player {
                     const targetCameraX = limitedX - canvas.width/2;
                     const targetCameraY = limitedY - canvas.height/2;
                     
-                    camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, targetCameraX));
-                    camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, targetCameraY));
+                    // Camera bounds based on current zone
+                    if (window.currentZone === GAME_ZONES.TESTING) {
+                        camera.x = Math.max(0, Math.min(TESTING_ZONE.WIDTH - canvas.width, targetCameraX));
+                        camera.y = Math.max(0, Math.min(TESTING_ZONE.HEIGHT - canvas.height, targetCameraY));
+                    } else if (window.currentZone === GAME_ZONES.STATION) {
+                        camera.x = Math.max(0, Math.min(STATION.WIDTH - canvas.width, targetCameraX));
+                        camera.y = Math.max(0, Math.min(STATION.HEIGHT - canvas.height, targetCameraY));
+                    } else {
+                        camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, targetCameraX));
+                        camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, targetCameraY));
+                    }
                 }
             } else if (this.isViewportMode) {
                 // When releasing right-click, smoothly return to the player
@@ -967,9 +1002,17 @@ class Player {
                 camera.x += (targetCameraX - camera.x) * 0.1;
                 camera.y += (targetCameraY - camera.y) * 0.1;
                 
-                // Keep camera within bounds
-                camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, camera.x));
-                camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, camera.y));
+                // Keep camera within bounds based on current zone
+                if (window.currentZone === GAME_ZONES.TESTING) {
+                    camera.x = Math.max(0, Math.min(TESTING_ZONE.WIDTH - canvas.width, camera.x));
+                    camera.y = Math.max(0, Math.min(TESTING_ZONE.HEIGHT - canvas.height, camera.y));
+                } else if (window.currentZone === GAME_ZONES.STATION) {
+                    camera.x = Math.max(0, Math.min(STATION.WIDTH - canvas.width, camera.x));
+                    camera.y = Math.max(0, Math.min(STATION.HEIGHT - canvas.height, camera.y));
+                } else {
+                    camera.x = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, camera.x));
+                    camera.y = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, camera.y));
+                }
                 
                 // Check if we're close enough to the target to end viewport mode
                 const distToTarget = distance(camera.x, camera.y, targetCameraX, targetCameraY);
@@ -1507,7 +1550,31 @@ class Player {
     }
 
     collectGems(amount) {
-        this.gems = Math.min(UPGRADE_LEVELS.LEVEL4.gems, this.gems + amount);
+        this.gems += amount;
+    }
+
+    applyArchetype(archetype) {
+        if (!archetype) return;
+        
+        // Apply archetype properties to the player
+        this.shipClass = {
+            ...this.shipClass,
+            ...archetype,
+            name: archetype.name || this.shipClass.name
+        };
+        
+        // Update player stats based on archetype
+        this.maxHealth = archetype.health || this.maxHealth;
+        this.health = this.maxHealth;
+        this.maxSpeed = archetype.maxSpeed || this.maxSpeed;
+        this.acceleration = archetype.acceleration || this.acceleration;
+        this.rotationalAcceleration = archetype.rotationalAcceleration || this.rotationalAcceleration;
+        this.shootCost = archetype.shootCost || this.shootCost;
+        this.maxEnergy = archetype.maxEnergy || this.maxEnergy;
+        this.energy = this.maxEnergy;
+        this.energyRegen = archetype.energyRegen || this.energyRegen;
+        this.healthRegen = archetype.healthRegen || this.healthRegen || 0;
+        this.contactDamageReduction = archetype.contactDamageReduction || 0;
     }
 
     updateLasers() {

@@ -166,12 +166,18 @@ class ChaserEnemy extends Enemy {
 class ShooterEnemy extends Enemy {
     constructor(x, y) {
         super(x, y);
-        this.width = 30;
-        this.height = 30;
-        this.health = 40;
-        this.maxSpeed = 2;
+        this.width = 40;
+        this.height = 40;
+        this.health = 50;
+        this.maxHealth = 50;
+        this.damage = 10;
         this.shootCooldown = 0;
-        this.maxShootCooldown = 60;
+        this.shootInterval = 90; // 1.5 seconds at 60 FPS
+        this.laserSpeed = 6;
+        this.laserWidth = 10;
+        this.laserHeight = 20;
+        this.color = '#ff00ff'; // Magenta color
+        this.maxSpeed = 2;
         this.aggroRange = 800; // Increased from 500
         this.shootRange = 600; // Increased from 400
         this.idleSpeed = 0.5;
@@ -191,50 +197,32 @@ class ShooterEnemy extends Enemy {
     behavior() {
         if (window.isFrozen) return;
 
-        const distToPlayer = distance(this.x, this.y, player.x, player.y);
-        const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
-
-        if (distToPlayer < this.aggroRange) {
-            // In aggro range - chase player and try to maintain shoot range
-            const targetDist = this.shootRange;
-            const moveSpeed = this.maxSpeed;
-
-            if (distToPlayer < targetDist - 50) {
-                // Too close, back away
-                this.velocityX = -Math.cos(angleToPlayer) * moveSpeed;
-                this.velocityY = -Math.sin(angleToPlayer) * moveSpeed;
-            } else if (distToPlayer > targetDist + 50) {
-                // Too far, move closer
-                this.velocityX = Math.cos(angleToPlayer) * moveSpeed;
-                this.velocityY = Math.sin(angleToPlayer) * moveSpeed;
+        // Move towards player if in aggro range
+        if (player && distance(this.x, this.y, player.x, player.y) < this.aggroRange) {
+            // Calculate angle to player
+            this.rotation = Math.atan2(player.y - this.y, player.x - this.x);
+            
+            // Move towards player if not in shoot range
+            if (distance(this.x, this.y, player.x, player.y) > this.shootRange) {
+                this.velocityX = Math.cos(this.rotation) * this.maxSpeed;
+                this.velocityY = Math.sin(this.rotation) * this.maxSpeed;
             } else {
-                // At good range, slow down
-                this.velocityX *= 0.95;
-                this.velocityY *= 0.95;
-            }
-
-            // Update rotation to face player
-            this.rotation = angleToPlayer;
-
-            // Shoot if in range
-            if (this.shootCooldown <= 0 && distToPlayer < this.shootRange) {
-                this.shoot();
+                // Slow down when in shooting range
+                this.velocityX *= 0.9;
+                this.velocityY *= 0.9;
+                
+                // Shoot at player
+                if (this.shootCooldown <= 0) {
+                    this.shoot();
+                    this.shootCooldown = this.shootInterval;
+                } else {
+                    this.shootCooldown--;
+                }
             }
         } else {
-            // Outside aggro range - idle movement
-            this.idleTimer++;
-            if (this.idleTimer >= this.idleChangeInterval) {
-                this.idleTimer = 0;
-                this.idleAngle = Math.random() * Math.PI * 2;
-            }
-
-            // Move in idle direction
-            this.velocityX = Math.cos(this.idleAngle) * this.idleSpeed;
-            this.velocityY = Math.sin(this.idleAngle) * this.idleSpeed;
-            
-            // Smoothly rotate towards movement direction
-            const rotationDiff = this.idleAngle - this.rotation;
-            this.rotation += rotationDiff * 0.1;
+            // Slow down when not chasing
+            this.velocityX *= 0.95;
+            this.velocityY *= 0.95;
         }
 
         // Update shoot cooldown
@@ -248,21 +236,25 @@ class ShooterEnemy extends Enemy {
     }
 
     shoot() {
-        // Create a new projectile
-        const projectile = {
-            x: this.x,
-            y: this.y,
-            velocityX: Math.cos(this.rotation) * 5,
-            velocityY: Math.sin(this.rotation) * 5,
-            damage: 10,
-            width: 4,
-            height: 4
-        };
+        // Create a projectile
+        if (!enemyProjectiles) enemyProjectiles = [];
         
-        if (typeof enemyProjectiles !== 'undefined') {
-            enemyProjectiles.push(projectile);
-        }
-        this.shootCooldown = this.maxShootCooldown;
+        // Calculate velocity based on angle to player
+        const velocityX = Math.cos(this.rotation) * this.laserSpeed;
+        const velocityY = Math.sin(this.rotation) * this.laserSpeed;
+        
+        // Create the projectile
+        enemyProjectiles.push({
+            x: this.x + Math.cos(this.rotation) * (this.width/2 + 5),
+            y: this.y + Math.sin(this.rotation) * (this.width/2 + 5),
+            width: this.laserWidth,
+            height: this.laserHeight,
+            velocityX: velocityX,
+            velocityY: velocityY,
+            damage: this.damage,
+            angle: this.rotation,
+            color: this.color // Use the enemy's color for the projectile
+        });
     }
 
     draw() {
@@ -691,5 +683,114 @@ class SwarmerEnemy extends Enemy {
             
             ctx.restore();
         });
+    }
+}
+
+class SentryEnemy extends Enemy {
+    constructor(x, y) {
+        super(x, y);
+        this.width = 60; // Larger than regular enemies
+        this.height = 60;
+        this.health = 200;
+        this.maxHealth = 200;
+        this.damage = 30; // High damage
+        this.shootCooldown = 0;
+        this.shootInterval = 120; // 2 seconds at 60 FPS
+        this.laserSpeed = 3; // Slow moving lasers
+        this.laserWidth = 15;
+        this.laserHeight = 30;
+        this.angle = 0; // Angle to face player
+    }
+
+    drawShape(x, y) {
+        // Draw gray hexagon
+        ctx.fillStyle = '#888888';
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i;
+            const hX = x + this.width/2 * Math.cos(angle);
+            const hY = y + this.width/2 * Math.sin(angle);
+            if (i === 0) {
+                ctx.moveTo(hX, hY);
+            } else {
+                ctx.lineTo(hX, hY);
+            }
+        }
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw red triangle pointing at player
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = '#ff3333';
+        ctx.beginPath();
+        ctx.moveTo(this.width/4, 0);
+        ctx.lineTo(-this.width/8, -this.width/8);
+        ctx.lineTo(-this.width/8, this.width/8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    behavior() {
+        // Don't move, just track player
+        if (player) {
+            // Calculate angle to player
+            this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+            
+            // Shoot at player on interval
+            if (this.shootCooldown <= 0) {
+                this.shoot();
+                this.shootCooldown = this.shootInterval;
+            } else {
+                this.shootCooldown--;
+            }
+        }
+    }
+
+    shoot() {
+        // Create a projectile
+        if (!enemyProjectiles) enemyProjectiles = [];
+        
+        // Calculate velocity based on angle to player
+        const velocityX = Math.cos(this.angle) * this.laserSpeed;
+        const velocityY = Math.sin(this.angle) * this.laserSpeed;
+        
+        // Create the projectile - make it a square
+        const size = 20; // Size of the square
+        enemyProjectiles.push({
+            x: this.x + Math.cos(this.angle) * (this.width/2 + 5),
+            y: this.y + Math.sin(this.angle) * (this.width/2 + 5),
+            width: size,
+            height: size,
+            velocityX: velocityX,
+            velocityY: velocityY,
+            damage: this.damage,
+            angle: this.angle,
+            color: '#8800ff', // Changed from red to purple
+            fromSentry: true // Mark as coming from a Sentry for identification
+        });
+    }
+
+    draw() {
+        const screenX = this.x - camera.x;
+        const screenY = this.y - camera.y;
+        
+        // Only draw if on screen
+        if (screenX + this.width/2 < 0 || screenX - this.width/2 > canvas.width ||
+            screenY + this.height/2 < 0 || screenY - this.height/2 > canvas.height) {
+            return;
+        }
+        
+        this.drawShape(screenX, screenY);
+        
+        // Check if mouse is hovering over this enemy
+        if (Math.abs(mouse.x - screenX) < this.width/2 && 
+            Math.abs(mouse.y - screenY) < this.height/2) {
+            if (isDebugMode) {
+                this.drawTooltip(screenX, screenY);
+            }
+        }
     }
 }

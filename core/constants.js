@@ -4,12 +4,40 @@ const GAME_STATES = {
     PLAYING: 'PLAYING',
     PAUSED: 'PAUSED',
     GAME_OVER: 'GAME_OVER',
-    SETTINGS: 'SETTINGS'
+    SETTINGS: 'SETTINGS',
+    STATION: 'STATION'
 };
 
 // World Constants
 const WORLD_WIDTH = Math.max(3000, window.innerWidth * 2);
 const WORLD_HEIGHT = Math.max(3000, window.innerHeight * 2);
+
+// Testing Zone Constants
+const TESTING_ZONE = {
+    WIDTH: WORLD_WIDTH,  // Match world width
+    HEIGHT: WORLD_HEIGHT, // Match world height
+    LINE_COUNT: 15,
+    LINE_SEGMENTS: 8,
+    CIRCLE_RADIUS: 15,
+    LINE_WIDTH: 3
+};
+
+// Game Zones
+const GAME_ZONES = {
+    TESTING: 'TESTING',
+    STATION: 'STATION',
+    MAIN: 'MAIN'
+};
+
+// Station Constants
+const STATION = {
+    WIDTH: 1200,
+    HEIGHT: 1000,
+    HEAL_POSITION: { x: 0, y: 0 }, // Will be set dynamically
+    SHIP_POSITION: { x: 0, y: 0 }, // Will be set dynamically
+    SHOP_POSITION: { x: 0, y: 0 }, // Will be set dynamically
+    INTERACTION_RADIUS: 80
+};
 
 // Upgrade Levels
 const UPGRADE_LEVELS = {

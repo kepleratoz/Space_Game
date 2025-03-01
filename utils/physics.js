@@ -141,6 +141,11 @@ function handleCollisions() {
                         }
                         enemies.splice(enemyIndex, 1);
                         score += 100;
+                        
+                        // Track enemy kill for testing zone progression
+                        if (typeof trackEnemyKill === 'function' && !(enemy instanceof Asteroid)) {
+                            trackEnemyKill();
+                        }
                     }
                 }
             }
@@ -322,6 +327,11 @@ function handleCollisions() {
                             gems.push(new Gem(object.x, object.y, 10));
                         }
                         score += 100;
+                        
+                        // Track enemy kill for testing zone progression
+                        if (typeof trackEnemyKill === 'function' && !(object instanceof Asteroid)) {
+                            trackEnemyKill();
+                        }
                     }
                 }
             }
@@ -351,12 +361,34 @@ function handleCollisions() {
     // Check enemy projectile hits on player
     if (enemyProjectiles && player) {
         enemyProjectiles = enemyProjectiles.filter(projectile => {
-            if (distance(projectile.x, projectile.y, player.x, player.y) < playerRadius + projectile.width/2) {
+            // Check for wall collisions in testing zone or station
+            if (window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION) {
+                // Get current zone dimensions
+                const zoneWidth = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.WIDTH : STATION.WIDTH;
+                const zoneHeight = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.HEIGHT : STATION.HEIGHT;
+                
+                const hitWall = (
+                    projectile.x - projectile.width/2 < WALL_WIDTH ||
+                    projectile.x + projectile.width/2 > zoneWidth - WALL_WIDTH ||
+                    projectile.y - projectile.height/2 < WALL_WIDTH ||
+                    projectile.y + projectile.height/2 > zoneHeight - WALL_WIDTH
+                );
+                if (hitWall) return false;
+            }
+            
+            // Check for player hit
+            if (distance(projectile.x, projectile.y, player.x, player.y) < playerRadius + Math.max(projectile.width, projectile.height)/2) {
                 const oldHealth = player.health;
                 player.takeDamage(projectile.damage);
                 const actualDamage = oldHealth - player.health;
                 if (actualDamage > 0) {
-                    damageNumbers.push(new DamageNumber(player.x, player.y, actualDamage));
+                    // Create damage number at player position
+                    damageNumbers.push(new DamageNumber(
+                        player.x, 
+                        player.y, 
+                        actualDamage,
+                        projectile.fromSentry ? '#8800ff' : '#ff00ff' // Purple for Sentry, magenta for others
+                    ));
                 }
                 return false;
             }
