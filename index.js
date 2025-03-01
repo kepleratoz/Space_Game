@@ -38,72 +38,103 @@ function gameLoop() {
     const currentTime = performance.now();
     const deltaTime = currentTime - lastFrameTime;
     
+    // Initialize player if not already initialized
+    if (!player && gameState === GAME_STATES.PLAYING) {
+        console.log("Initializing default player...");
+        
+        // Create default player with Fighter class
+        player = new Player(SHIP_CLASSES.FIGHTER);
+        
+        // Position player in the center of the station
+        player.x = STATION.WIDTH / 2;
+        player.y = STATION.HEIGHT / 2;
+        
+        // Set current zone to station
+        window.currentZone = GAME_ZONES.STATION;
+        
+        // Set camera to follow player
+        if (camera) {
+            camera.x = player.x - canvas.width/2; // Immediately position camera
+            camera.y = player.y - canvas.height/2;
+            camera.follow(player);
+            console.log("Camera following player at position:", player.x, player.y);
+        } else {
+            console.error("Camera not initialized!");
+        }
+        
+        console.log("Default player initialized at position:", player.x, player.y);
+    }
+    
     // Update animation time for visual effects
     animationTime += deltaTime / 1000; // Convert to seconds
     
     // Respect max framerate setting
     const frameTime = 1000 / settings.maxFPS;
     if (deltaTime < frameTime) {
-        setTimeout(() => requestAnimationFrame(gameLoop), 0);
+        requestAnimationFrame(gameLoop);
         return;
     }
     
     // Update FPS counter
     fps = updateFPS();
-    lastFrameTime = currentTime;
-
+    
     // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Fill with black background
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    if (gameState === GAME_STATES.CLASS_SELECT) {
-        drawClassSelection();
-        drawSettingsButton();
-        if (showingAbilityUnlockScreen && selectedShipForAbilities) {
-            drawAbilityUnlockScreen();
-        }
-        setTimeout(() => requestAnimationFrame(gameLoop), 0);
+    
+    // Handle game states
+    if (gameState === GAME_STATES.SETTINGS) {
+        drawSettingsMenu();
+        lastFrameTime = currentTime;
+        requestAnimationFrame(gameLoop);
         return;
     }
     
-    if (gameState === GAME_STATES.SETTINGS) {
-        drawSettingsMenu();
-        setTimeout(() => requestAnimationFrame(gameLoop), 0);
+    if (gameState === GAME_STATES.CLASS_SELECT) {
+        drawClassSelection();
+        lastFrameTime = currentTime;
+        requestAnimationFrame(gameLoop);
         return;
     }
     
     if (gameState === GAME_STATES.GAME_OVER || gameOver) {
         drawGameOver();
-        setTimeout(() => requestAnimationFrame(gameLoop), 0);
+        lastFrameTime = currentTime;
+        requestAnimationFrame(gameLoop);
         return;
     }
-
+    
+    // Update camera
+    if (camera) {
+        camera.update();
+    } else {
+        console.error("Camera is null in game loop!");
+    }
+    
+    // Debug logging for player and camera position
+    if (player && isDebugMode) {
+        console.log("Player position:", player.x, player.y, "Camera position:", camera.x, camera.y);
+    }
+    
     // Draw appropriate background based on zone
     if (window.currentZone === GAME_ZONES.TESTING) {
         drawTestingZoneBackground();
     } else if (window.currentZone === GAME_ZONES.STATION) {
         drawStationBackground();
+    } else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+        drawDebrisFieldBackground();
     } else {
         // Draw regular background for main game
         drawBackground();
     }
 
     // Handle zone transitions
-    if (window.previousZone !== window.currentZone) {
-        // Clear enemies when changing zones
-        if (window.previousZone === GAME_ZONES.TESTING) {
-            // Clear enemies when leaving testing zone
-            enemies = [];
-            enemyProjectiles = [];
-        }
-        
-        // Update previous zone tracker
+    if (window.currentZone !== window.previousZone) {
+        console.log(`Zone transition: ${window.previousZone} -> ${window.currentZone}`);
         window.previousZone = window.currentZone;
-    }
-
-    // Update camera
-    if (camera) {
-        camera.update();
     }
 
     // Update game objects only if not paused
@@ -132,7 +163,7 @@ function gameLoop() {
             handleCollisions();
 
             // During wave spawning
-            if (enemies.length < 15 && Math.random() < 0.03 && window.enemiesRemainingInWave > 0) {
+            if (window.currentZone === GAME_ZONES.MAIN && enemies.length < 15 && Math.random() < 0.03 && window.enemiesRemainingInWave > 0) {
                 spawnEnemy();
                 window.enemiesRemainingInWave--;
             }
@@ -192,13 +223,26 @@ function gameLoop() {
                 });
             }
         }
+        
+        // Handle laser collisions with Debris Field walls
+        if (window.currentZone === GAME_ZONES.DEBRIS_FIELD && player && player.lasers) {
+            player.lasers = player.lasers.filter(laser => {
+                return isPointInsidePolygon({ x: laser.x, y: laser.y }, DEBRIS_FIELD.WALL_POINTS);
+            });
+        }
     }
     
     // Draw player
-    player.draw();
+    if (player) {
+        player.draw();
+    }
     
     // Draw all game objects
-    [...asteroids, ...enemies, ...healthPacks, ...gems].forEach(obj => obj.draw());
+    if (asteroids && enemies && healthPacks && gems) {
+        [...asteroids, ...enemies, ...healthPacks, ...gems].forEach(obj => {
+            if (obj) obj.draw();
+        });
+    }
     
     // Draw enemy projectiles
     if (enemyProjectiles && enemyProjectiles.length > 0) {
@@ -233,7 +277,9 @@ function gameLoop() {
     }
     
     // Draw player lasers
-    player.drawLasers();
+    if (player && typeof player.drawLasers === 'function') {
+        player.drawLasers();
+    }
     
     // Update and draw damage numbers
     damageNumbers = damageNumbers.filter(number => {
@@ -265,10 +311,17 @@ function gameLoop() {
         ctx.fillStyle = '#fff';
         ctx.fillText(fpsText, canvas.width - 10, canvas.height - 8);
     }
-
+    
     // Draw pause screen if paused
     if (gameState === GAME_STATES.PAUSED) {
         drawPauseScreen();
+    }
+    
+    // Handle interactions based on current zone
+    if (window.currentZone === GAME_ZONES.STATION) {
+        handleStationInteractions();
+    } else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+        handleDebrisFieldInteractions();
     }
 
     // Use setTimeout for more precise timing at high framerates
@@ -717,7 +770,7 @@ function drawExitPortal(x, y, isNearby) {
     ctx.fillStyle = '#ffffff';
     ctx.font = isNearby ? 'bold 16px Arial' : '16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Exit to Main Game', x, y + 70);
+    ctx.fillText('Exit to Debris Field', x, y + 70);
     
     // Draw interaction prompt if nearby
     if (isNearby) {
@@ -844,13 +897,18 @@ function handleStationInteractions() {
                 showNotification('Testing complete - Enemies cleared');
             }
             
-            // Exit to main game
-            window.currentZone = GAME_ZONES.MAIN;
+            // Exit to Debris Field instead of main game
+            window.currentZone = GAME_ZONES.DEBRIS_FIELD;
             gameState = GAME_STATES.PLAYING;
-            window.waveNumber = 1;
-            window.enemiesRemainingInWave = 7 + (window.waveNumber - 1) * 2;
-            window.waveStartTime = Date.now();
-            showNotification('Entering Main Game - Wave 1');
+            
+            // Position player at the entrance of the Debris Field
+            player.x = 200;
+            player.y = 200;
+            
+            // Spawn a single Automated Sentry in the Debris Field
+            enemies = [new AutomatedSentry(1000, 1000)];
+            
+            showNotification('Entering Debris Field - Watch out for Automated Sentries!');
         }
     }
 }
@@ -868,6 +926,329 @@ function storeShipData() {
     };
 }
 
+// Draw the Debris Field background
+function drawDebrisFieldBackground() {
+    // Fill the entire visible area with dark blue background
+    ctx.fillStyle = DEBRIS_FIELD.BACKGROUND_COLOR;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+    
+    // Draw the irregular boundary walls
+    ctx.fillStyle = DEBRIS_FIELD.WALL_COLOR;
+    ctx.beginPath();
+    
+    // Draw outer boundary
+    ctx.moveTo(DEBRIS_FIELD.WALL_POINTS[0].x, DEBRIS_FIELD.WALL_POINTS[0].y);
+    for (let i = 1; i < DEBRIS_FIELD.WALL_POINTS.length; i++) {
+        ctx.lineTo(DEBRIS_FIELD.WALL_POINTS[i].x, DEBRIS_FIELD.WALL_POINTS[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    
+    // Create a clipping region for the inner area
+    ctx.beginPath();
+    // Create a smaller inner path by scaling the outer path towards the center
+    const centerX = DEBRIS_FIELD.WIDTH / 2;
+    const centerY = DEBRIS_FIELD.HEIGHT / 2;
+    const scale = 0.95; // Scale factor to create inner wall
+    
+    ctx.moveTo(
+        centerX + (DEBRIS_FIELD.WALL_POINTS[0].x - centerX) * scale,
+        centerY + (DEBRIS_FIELD.WALL_POINTS[0].y - centerY) * scale
+    );
+    
+    for (let i = 1; i < DEBRIS_FIELD.WALL_POINTS.length; i++) {
+        ctx.lineTo(
+            centerX + (DEBRIS_FIELD.WALL_POINTS[i].x - centerX) * scale,
+            centerY + (DEBRIS_FIELD.WALL_POINTS[i].y - centerY) * scale
+        );
+    }
+    
+    ctx.closePath();
+    ctx.clip();
+    
+    // Fill the inner area with the background color
+    ctx.fillStyle = DEBRIS_FIELD.BACKGROUND_COLOR;
+    ctx.fillRect(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
+    
+    // Draw some debris and asteroids in the background for visual interest
+    ctx.fillStyle = '#2a2a4a';
+    for (let i = 0; i < 50; i++) {
+        const x = Math.random() * DEBRIS_FIELD.WIDTH;
+        const y = Math.random() * DEBRIS_FIELD.HEIGHT;
+        const size = 5 + Math.random() * 20;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Draw some larger asteroid-like shapes
+    ctx.fillStyle = '#3a3a5a';
+    for (let i = 0; i < 20; i++) {
+        const x = Math.random() * DEBRIS_FIELD.WIDTH;
+        const y = Math.random() * DEBRIS_FIELD.HEIGHT;
+        const size = 20 + Math.random() * 40;
+        
+        ctx.beginPath();
+        const sides = 5 + Math.floor(Math.random() * 3);
+        const angleOffset = Math.random() * Math.PI * 2;
+        
+        for (let j = 0; j < sides; j++) {
+            const angle = angleOffset + j * 2 * Math.PI / sides;
+            const radius = size * (0.8 + Math.random() * 0.4);
+            const px = x + radius * Math.cos(angle);
+            const py = y + radius * Math.sin(angle);
+            
+            if (j === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        
+        ctx.closePath();
+        ctx.fill();
+    }
+    
+    // Draw return portal to station
+    const returnX = 100;
+    const returnY = 100;
+    drawReturnPortal(returnX, returnY, isPlayerNearReturnPortal(returnX, returnY));
+    
+    ctx.restore();
+}
+
+// Draw return portal to station
+function drawReturnPortal(x, y, isNearby) {
+    ctx.save();
+    
+    // Draw portal in the same style as station elements
+    ctx.fillStyle = '#00ffff'; // Cyan
+    ctx.strokeStyle = isNearby ? '#ffffff' : '#888888';
+    ctx.lineWidth = isNearby ? 3 : 1;
+    
+    // Draw portal as a circle
+    ctx.beginPath();
+    ctx.arc(x, y, 40, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Add a glowing effect
+    const gradient = ctx.createRadialGradient(x, y, 20, x, y, 60);
+    gradient.addColorStop(0, 'rgba(0, 255, 255, 0.7)');
+    gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, 60, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = isNearby ? 'bold 16px Arial' : '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Return to Station', x, y + 70);
+    
+    // Draw interaction prompt if nearby
+    if (isNearby) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px Arial';
+        ctx.fillText('Press E to return', x, y + 90);
+    }
+    
+    ctx.restore();
+}
+
+// Check if player is near return portal
+function isPlayerNearReturnPortal(portalX, portalY) {
+    const distance = Math.sqrt(
+        Math.pow(player.x - portalX, 2) + 
+        Math.pow(player.y - portalY, 2)
+    );
+    return distance < 80; // Interaction radius
+}
+
+// Check for collisions
+function checkCollisions() {
+    // ... existing code ...
+    
+    // Check for collisions with zone boundaries
+    if (window.currentZone === GAME_ZONES.TESTING) {
+        // Testing zone boundary collision
+        if (player.x - player.radius < 0) player.x = player.radius;
+        if (player.x + player.radius > TESTING_ZONE.WIDTH) player.x = TESTING_ZONE.WIDTH - player.radius;
+        if (player.y - player.radius < 0) player.y = player.radius;
+        if (player.y + player.radius > TESTING_ZONE.HEIGHT) player.y = TESTING_ZONE.HEIGHT - player.radius;
+    } else if (window.currentZone === GAME_ZONES.STATION) {
+        // Station boundary collision
+        if (player.x - player.radius < WALL_WIDTH) player.x = WALL_WIDTH + player.radius;
+        if (player.x + player.radius > STATION.WIDTH - WALL_WIDTH) {
+            // Check if player is at the ship selection opening
+            if (player.y > STATION.SHIP_OPENING.y && player.y < STATION.SHIP_OPENING.y + STATION.SHIP_OPENING.height) {
+                // Allow player to enter the ship selection area
+                if (player.x + player.radius > STATION.WIDTH - WALL_WIDTH + 10) {
+                    // Automatically open ship selection when player touches the opening
+                    gameState = GAME_STATES.CLASS_SELECTION;
+                    player.x = STATION.WIDTH - WALL_WIDTH - player.radius - 5;
+                }
+            } else {
+                player.x = STATION.WIDTH - WALL_WIDTH - player.radius;
+            }
+        }
+        if (player.y - player.radius < WALL_WIDTH) player.y = WALL_WIDTH + player.radius;
+        if (player.y + player.radius > STATION.HEIGHT - WALL_WIDTH) player.y = STATION.HEIGHT - WALL_WIDTH - player.radius;
+    } else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+        // Debris Field boundary collision - using polygon collision detection
+        const playerPoint = { x: player.x, y: player.y };
+        
+        // Check if player is inside the debris field
+        if (!isPointInsidePolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS)) {
+            // Find the closest point on the polygon boundary
+            const closestPoint = findClosestPointOnPolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS);
+            
+            // Push player back inside
+            const dx = playerPoint.x - closestPoint.x;
+            const dy = playerPoint.y - closestPoint.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < player.radius) {
+                // Calculate how far to push the player
+                const pushDistance = player.radius - distance;
+                const angle = Math.atan2(dy, dx);
+                
+                // Push player away from wall
+                player.x += Math.cos(angle) * pushDistance;
+                player.y += Math.sin(angle) * pushDistance;
+            }
+        }
+        
+        // Also check for laser collisions with debris field walls
+        for (let i = lasers.length - 1; i >= 0; i--) {
+            const laser = lasers[i];
+            if (!isPointInsidePolygon({ x: laser.x, y: laser.y }, DEBRIS_FIELD.WALL_POINTS)) {
+                lasers.splice(i, 1);
+            }
+        }
+        
+        // Check enemy projectiles collision with walls
+        for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+            const projectile = enemyProjectiles[i];
+            if (!isPointInsidePolygon({ x: projectile.x, y: projectile.y }, DEBRIS_FIELD.WALL_POINTS)) {
+                enemyProjectiles.splice(i, 1);
+            }
+        }
+    }
+    
+    // ... existing code ...
+}
+
+// Helper function to check if a point is inside a polygon
+function isPointInsidePolygon(point, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+        
+        const intersect = ((yi > point.y) !== (yj > point.y))
+            && (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+// Helper function to find the closest point on a polygon to a given point
+function findClosestPointOnPolygon(point, polygon) {
+    let closestPoint = { x: 0, y: 0 };
+    let minDistance = Number.MAX_VALUE;
+    
+    // Check each edge of the polygon
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const edge = {
+            x1: polygon[j].x,
+            y1: polygon[j].y,
+            x2: polygon[i].x,
+            y2: polygon[i].y
+        };
+        
+        const closest = closestPointOnLine(point, edge);
+        const dx = closest.x - point.x;
+        const dy = closest.y - point.y;
+        const distance = dx * dx + dy * dy;
+        
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestPoint = closest;
+        }
+    }
+    
+    return closestPoint;
+}
+
+// Helper function to find the closest point on a line segment to a given point
+function closestPointOnLine(point, line) {
+    const A = point.x - line.x1;
+    const B = point.y - line.y1;
+    const C = line.x2 - line.x1;
+    const D = line.y2 - line.y1;
+    
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    
+    if (lenSq !== 0) {
+        param = dot / lenSq;
+    }
+    
+    let xx, yy;
+    
+    if (param < 0) {
+        xx = line.x1;
+        yy = line.y1;
+    } else if (param > 1) {
+        xx = line.x2;
+        yy = line.y2;
+    } else {
+        xx = line.x1 + param * C;
+        yy = line.y1 + param * D;
+    }
+    
+    return { x: xx, y: yy };
+}
+
+// Make the helper functions available globally
+window.isPointInsidePolygon = isPointInsidePolygon;
+window.findClosestPointOnPolygon = findClosestPointOnPolygon;
+window.closestPointOnLine = closestPointOnLine;
+
+// Handle interactions in the Debris Field
+function handleDebrisFieldInteractions() {
+    // Return portal position
+    const returnX = 100;
+    const returnY = 100;
+    
+    // Check for 'E' key press near the return portal
+    if (keys['KeyE'] && isPlayerNearReturnPortal(returnX, returnY)) {
+        // Clear the key to prevent multiple triggers
+        keys['KeyE'] = false;
+        
+        // Return to station
+        window.currentZone = GAME_ZONES.STATION;
+        gameState = GAME_STATES.PLAYING;
+        
+        // Position player near the exit in the station
+        player.x = STATION.WIDTH - WALL_WIDTH - 150;
+        player.y = STATION.HEIGHT - WALL_WIDTH - 150;
+        
+        // Clear enemies and projectiles
+        enemies = [];
+        enemyProjectiles = [];
+        
+        showNotification('Returned to Station');
+    }
+}
+
 // Start the game
 initializeGame();
 gameLoop();
@@ -875,3 +1256,7 @@ gameLoop();
 // Make functions globally available
 window.drawStationBackground = drawStationBackground;
 window.drawStationUI = drawStationUI;
+window.drawDebrisFieldBackground = drawDebrisFieldBackground;
+window.drawReturnPortal = drawReturnPortal;
+window.isPlayerNearReturnPortal = isPlayerNearReturnPortal;
+window.handleDebrisFieldInteractions = handleDebrisFieldInteractions;

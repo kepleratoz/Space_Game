@@ -37,10 +37,16 @@ function drawDebugInfo() {
     ctx.fillText('C: Clear all enemies', textX, textY);
     textY += lineHeight;
     
-    // Show additional debug info
-    ctx.fillText(`X: ${Math.round(player.x)}, Y: ${Math.round(player.y)}`, textX, textY);
-    textY += lineHeight;
-    ctx.fillText(`Enemies: ${enemies.length}, Asteroids: ${asteroids.length}`, textX, textY);
+    // Show additional debug info if player exists
+    if (player) {
+        ctx.fillText(`X: ${Math.round(player.x)}, Y: ${Math.round(player.y)}`, textX, textY);
+        textY += lineHeight;
+    } else {
+        ctx.fillText(`Player: null`, textX, textY);
+        textY += lineHeight;
+    }
+    
+    ctx.fillText(`Enemies: ${enemies ? enemies.length : 0}, Asteroids: ${asteroids ? asteroids.length : 0}`, textX, textY);
     
     ctx.textAlign = 'left';
 }

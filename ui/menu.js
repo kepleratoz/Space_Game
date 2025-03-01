@@ -337,6 +337,9 @@ function drawSettingsMenu() {
 }
 
 function drawShipClassDisplay() {
+    // Only draw ship class display if player exists
+    if (!player) return;
+    
     const margin = 10;
     const padding = 5; // Reduced padding
     const boxWidth = 150;
@@ -367,8 +370,13 @@ function drawShipClassDisplay() {
 
 function drawGameUI() {
     drawMinimap();
-    player.drawStatusBars();
-    player.drawAbilityCooldowns();
+    
+    // Only draw player UI elements if player exists
+    if (player) {
+        player.drawStatusBars();
+        player.drawAbilityCooldowns();
+    }
+    
     drawDebugInfo();
     drawPauseButton();
     drawShipClassDisplay();

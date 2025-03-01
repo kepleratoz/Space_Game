@@ -4,6 +4,10 @@ window.selectedShipClass = null;
 window.selectedShipForAbilities = null;
 window.showingAbilityUnlockScreen = false;
 
+// Initialize global button variables at the top of the file
+let startGameBtn = null;
+let returnToStationBtn = null;
+
 // Class selection UI functions
 function drawClassSelection() {
     // Add a semi-transparent dark background
@@ -121,7 +125,7 @@ function drawClassSelection() {
     }
 
     // Draw a smaller button lower on the screen
-    const startGameBtn = {
+    startGameBtn = {
         x: canvas.width/2 - 100,
         y: canvas.height - 150,
         width: 200,
@@ -153,7 +157,7 @@ function drawClassSelection() {
     ctx.fillText(displayText, startGameBtn.x + startGameBtn.width/2, startGameBtn.y - 20);
 
     // Draw "Return to Station" button at the bottom
-    const returnBtn = {
+    returnToStationBtn = {
         x: canvas.width/2 - 100,
         y: canvas.height - 80,
         width: 200,
@@ -161,26 +165,26 @@ function drawClassSelection() {
     };
 
     // Draw button background with hover effect
-    ctx.fillStyle = mouse.x >= returnBtn.x && 
-                   mouse.x <= returnBtn.x + returnBtn.width &&
-                   mouse.y >= returnBtn.y && 
-                   mouse.y <= returnBtn.y + returnBtn.height
+    ctx.fillStyle = mouse.x >= returnToStationBtn.x && 
+                   mouse.x <= returnToStationBtn.x + returnToStationBtn.width &&
+                   mouse.y >= returnToStationBtn.y && 
+                   mouse.y <= returnToStationBtn.y + returnToStationBtn.height
                    ? '#e74c3c' : '#c0392b';  // Lighter red on hover
-    ctx.fillRect(returnBtn.x, returnBtn.y, returnBtn.width, returnBtn.height);
+    ctx.fillRect(returnToStationBtn.x, returnToStationBtn.y, returnToStationBtn.width, returnToStationBtn.height);
 
     // Draw white outline
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
-    ctx.strokeRect(returnBtn.x, returnBtn.y, returnBtn.width, returnBtn.height);
+    ctx.strokeRect(returnToStationBtn.x, returnToStationBtn.y, returnToStationBtn.width, returnToStationBtn.height);
 
     // Draw text
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 18px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('RETURN TO STATION', returnBtn.x + returnBtn.width/2, returnBtn.y + 25);
+    ctx.fillText('RETURN TO STATION', returnToStationBtn.x + returnToStationBtn.width/2, returnToStationBtn.y + 25);
 
     window.startGameBtn = startGameBtn; // Store button coordinates globally
-    window.returnToStationBtn = returnBtn; // Store return button coordinates
+    window.returnToStationBtn = returnToStationBtn; // Store return button coordinates
 }
 
 function drawArchetypeCard(ship, x, y, isBase = false) {

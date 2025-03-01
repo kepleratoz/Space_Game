@@ -26,7 +26,8 @@ const TESTING_ZONE = {
 const GAME_ZONES = {
     TESTING: 'TESTING',
     STATION: 'STATION',
-    MAIN: 'MAIN'
+    MAIN: 'MAIN',
+    DEBRIS_FIELD: 'DEBRIS_FIELD'
 };
 
 // Station Constants
@@ -37,6 +38,39 @@ const STATION = {
     SHIP_POSITION: { x: 0, y: 0 }, // Will be set dynamically
     SHOP_POSITION: { x: 0, y: 0 }, // Will be set dynamically
     INTERACTION_RADIUS: 80
+};
+
+// Debris Field Constants
+const DEBRIS_FIELD = {
+    WIDTH: 2000,
+    HEIGHT: 2000,
+    WALL_POINTS: [
+        // Irregular shape with twists and turns
+        { x: 0, y: 0 },
+        { x: 400, y: 100 },
+        { x: 800, y: 50 },
+        { x: 1200, y: 200 },
+        { x: 1600, y: 100 },
+        { x: 2000, y: 0 },
+        { x: 2000, y: 400 },
+        { x: 1900, y: 800 },
+        { x: 2000, y: 1200 },
+        { x: 1800, y: 1600 },
+        { x: 2000, y: 2000 },
+        { x: 1600, y: 2000 },
+        { x: 1200, y: 1900 },
+        { x: 800, y: 2000 },
+        { x: 400, y: 1800 },
+        { x: 0, y: 2000 },
+        { x: 0, y: 1600 },
+        { x: 100, y: 1200 },
+        { x: 0, y: 800 },
+        { x: 200, y: 400 },
+        { x: 0, y: 0 }
+    ],
+    WALL_WIDTH: 40,
+    BACKGROUND_COLOR: '#1a1a2e',
+    WALL_COLOR: '#4a4a6a'
 };
 
 // Upgrade Levels

@@ -782,3 +782,127 @@ class SentryEnemy extends Enemy {
         }
     }
 }
+
+class AutomatedSentry extends Enemy {
+    constructor(x, y) {
+        super(x, y);
+        this.width = 40;
+        this.height = 40;
+        this.health = 50;
+        this.maxHealth = 50;
+        this.damage = 40; // High damage
+        this.shootCooldown = 0;
+        this.shootInterval = 180; // 3 seconds at 60 FPS (very slow)
+        this.laserSpeed = 4; // Slower projectiles
+        this.laserWidth = 15; // Larger projectiles
+        this.laserHeight = 15;
+        this.color = '#8a2be2'; // Deep purple color
+        this.maxSpeed = 0; // Stationary
+        this.aggroRange = 800;
+        this.shootRange = 700;
+        this.type = 'Automated Sentry';
+        this.rotationSpeed = 0.01; // Slow rotation
+    }
+
+    drawShape(x, y) {
+        // Draw a hexagonal sentry turret
+        ctx.beginPath();
+        const sides = 6;
+        const size = this.width / 2;
+        
+        for (let i = 0; i < sides; i++) {
+            const angle = (i * 2 * Math.PI / sides) + this.rotation;
+            const px = x + size * Math.cos(angle);
+            const py = y + size * Math.sin(angle);
+            
+            if (i === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw a "barrel" pointing in the direction of rotation
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(
+            x + (size + 10) * Math.cos(this.rotation),
+            y + (size + 10) * Math.sin(this.rotation)
+        );
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+    }
+
+    behavior() {
+        if (window.isFrozen) return;
+
+        // Only rotate and shoot if player is in range
+        if (player && distance(this.x, this.y, player.x, player.y) < this.aggroRange) {
+            // Calculate angle to player for rotation
+            const targetRotation = Math.atan2(player.y - this.y, player.x - this.x);
+            
+            // Smoothly rotate towards player
+            const angleDiff = normalizeAngle(targetRotation - this.rotation);
+            if (Math.abs(angleDiff) > 0.05) {
+                this.rotation += Math.sign(angleDiff) * this.rotationSpeed;
+            }
+            
+            // Shoot at player if cooldown is ready and in range
+            if (this.shootCooldown <= 0 && distance(this.x, this.y, player.x, player.y) < this.shootRange) {
+                this.shoot();
+                this.shootCooldown = this.shootInterval;
+            }
+        } else {
+            // Slowly rotate when idle
+            this.rotation += this.rotationSpeed / 3;
+        }
+
+        // Update shoot cooldown
+        if (this.shootCooldown > 0) {
+            this.shootCooldown--;
+        }
+    }
+
+    shoot() {
+        // Create a large projectile
+        if (!enemyProjectiles) enemyProjectiles = [];
+        
+        // Calculate velocity based on current rotation (not necessarily pointing at player)
+        const velocityX = Math.cos(this.rotation) * this.laserSpeed;
+        const velocityY = Math.sin(this.rotation) * this.laserSpeed;
+        
+        // Create the projectile
+        enemyProjectiles.push({
+            x: this.x + Math.cos(this.rotation) * (this.width/2 + 5),
+            y: this.y + Math.sin(this.rotation) * (this.width/2 + 5),
+            width: this.laserWidth,
+            height: this.laserWidth,
+            velocityX: velocityX,
+            velocityY: velocityY,
+            damage: this.damage,
+            angle: this.rotation,
+            color: '#8a2be2' // Match sentry color
+        });
+    }
+}
+
+// Helper function to normalize angle between -PI and PI
+function normalizeAngle(angle) {
+    while (angle > Math.PI) angle -= 2 * Math.PI;
+    while (angle < -Math.PI) angle += 2 * Math.PI;
+    return angle;
+}
+
+// Make all enemy classes available globally
+window.Enemy = Enemy;
+window.ChaserEnemy = ChaserEnemy;
+window.ShooterEnemy = ShooterEnemy;
+window.DasherEnemy = DasherEnemy;
+window.BomberEnemy = BomberEnemy;
+window.SwarmerEnemy = SwarmerEnemy;
+window.SentryEnemy = SentryEnemy;
+window.AutomatedSentry = AutomatedSentry;

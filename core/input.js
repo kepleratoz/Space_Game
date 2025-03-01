@@ -198,22 +198,30 @@ canvas.addEventListener('click', (e) => {
         }
         
         // Check if click is on start game button
-        if (startGameBtn) {
-            if (mouseX >= startGameBtn.x && 
-                mouseX <= startGameBtn.x + startGameBtn.width &&
-                mouseY >= startGameBtn.y && 
-                mouseY <= startGameBtn.y + startGameBtn.height) {
+        if (typeof window.startGameBtn !== 'undefined' && window.startGameBtn && 
+            typeof window.startGameBtn.x !== 'undefined' && 
+            typeof window.startGameBtn.width !== 'undefined' && 
+            typeof window.startGameBtn.y !== 'undefined' && 
+            typeof window.startGameBtn.height !== 'undefined') {
+            if (mouseX >= window.startGameBtn.x && 
+                mouseX <= window.startGameBtn.x + window.startGameBtn.width &&
+                mouseY >= window.startGameBtn.y && 
+                mouseY <= window.startGameBtn.y + window.startGameBtn.height) {
                 startGame(selectedShipClass || 'FIGHTER');
                 return;
             }
         }
         
         // Check if click is on return to station button
-        if (returnToStationBtn) {
-            if (mouseX >= returnToStationBtn.x && 
-                mouseX <= returnToStationBtn.x + returnToStationBtn.width &&
-                mouseY >= returnToStationBtn.y && 
-                mouseY <= returnToStationBtn.y + returnToStationBtn.height) {
+        if (typeof window.returnToStationBtn !== 'undefined' && window.returnToStationBtn && 
+            typeof window.returnToStationBtn.x !== 'undefined' && 
+            typeof window.returnToStationBtn.width !== 'undefined' &&
+            typeof window.returnToStationBtn.y !== 'undefined' && 
+            typeof window.returnToStationBtn.height !== 'undefined') {
+            if (mouseX >= window.returnToStationBtn.x && 
+                mouseX <= window.returnToStationBtn.x + window.returnToStationBtn.width &&
+                mouseY >= window.returnToStationBtn.y && 
+                mouseY <= window.returnToStationBtn.y + window.returnToStationBtn.height) {
                 // Return to station without changing ship
                 gameState = GAME_STATES.PLAYING;
                 return;

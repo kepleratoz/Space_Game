@@ -13,53 +13,63 @@ function drawMinimap() {
     ctx.lineWidth = 1;
     ctx.strokeRect(mapX, mapY, mapSize, mapSize);
 
-    // Draw player
-    ctx.fillStyle = '#00ff00';
-    ctx.fillRect(
-        mapX + player.x * mapScale - 2,
-        mapY + player.y * mapScale - 2,
-        4, 4
-    );
+    // Draw player if it exists
+    if (player) {
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(
+            mapX + player.x * mapScale - 2,
+            mapY + player.y * mapScale - 2,
+            4, 4
+        );
+    }
 
     // Draw enemies
     ctx.fillStyle = '#ff0000';
-    enemies.forEach(enemy => {
-        ctx.fillRect(
-            mapX + enemy.x * mapScale - 1,
-            mapY + enemy.y * mapScale - 1,
-            2, 2
-        );
-    });
+    if (enemies && enemies.length > 0) {
+        enemies.forEach(enemy => {
+            ctx.fillRect(
+                mapX + enemy.x * mapScale - 1,
+                mapY + enemy.y * mapScale - 1,
+                2, 2
+            );
+        });
+    }
 
     // Draw asteroids
     ctx.fillStyle = '#808080';
-    asteroids.forEach(asteroid => {
-        ctx.fillRect(
-            mapX + asteroid.x * mapScale - 1,
-            mapY + asteroid.y * mapScale - 1,
-            2, 2
-        );
-    });
+    if (asteroids && asteroids.length > 0) {
+        asteroids.forEach(asteroid => {
+            ctx.fillRect(
+                mapX + asteroid.x * mapScale - 1,
+                mapY + asteroid.y * mapScale - 1,
+                2, 2
+            );
+        });
+    }
 
     // Draw health packs
     ctx.fillStyle = '#00ff00';
-    healthPacks.forEach(pack => {
-        ctx.fillRect(
-            mapX + pack.x * mapScale - 1,
-            mapY + pack.y * mapScale - 1,
-            2, 2
-        );
-    });
+    if (healthPacks && healthPacks.length > 0) {
+        healthPacks.forEach(pack => {
+            ctx.fillRect(
+                mapX + pack.x * mapScale - 1,
+                mapY + pack.y * mapScale - 1,
+                2, 2
+            );
+        });
+    }
 
     // Draw gems
     ctx.fillStyle = '#f0f';
-    gems.forEach(gem => {
-        ctx.fillRect(
-            mapX + gem.x * mapScale - 1,
-            mapY + gem.y * mapScale - 1,
-            2, 2
-        );
-    });
+    if (gems && gems.length > 0) {
+        gems.forEach(gem => {
+            ctx.fillRect(
+                mapX + gem.x * mapScale - 1,
+                mapY + gem.y * mapScale - 1,
+                2, 2
+            );
+        });
+    }
 
     // Draw viewport rectangle
     ctx.strokeStyle = '#ffffff';
