@@ -461,6 +461,21 @@ class Player {
         const barSpacing = 25; // Reduced spacing between bars
         const x = margin + barWidth/2;
         
+        // Calculate total panel height based on the number of bars
+        const panelPadding = 5; // Reduced padding
+        let panelHeight = barHeight * 3 + barSpacing * 2 + panelPadding * 2;
+        
+        // Add extra height for score caption
+        panelHeight += 25;
+        
+        // Add extra height for Rammer or Sniper special bars
+        if (this.shipClass.name === 'Rammer' || this.shipClass.name === 'Sniper') {
+            panelHeight += 30; // Extra space for special bars
+        }
+        
+        // Remove the semi-transparent panel background
+        // No background box, just draw the bars directly
+        
         // Draw health bar and caption
         const healthY = margin;
         ctx.fillStyle = '#333';
@@ -517,6 +532,10 @@ class Player {
             ctx.fillText(`Gems: ${this.gems}/${nextUpgradeGems}`, x, gemY + 15);
         }
         
+        // Score caption below the bars
+        ctx.fillStyle = '#fff';
+        ctx.fillText(`Score: ${score}`, x, gemY + barSpacing + 10);
+        
         // Draw dash charges for Rammer
         if (this.shipClass.name === 'Rammer') {
             const chargeWidth = 30;
@@ -549,135 +568,232 @@ class Player {
 
             // Draw charging progress if currently charging
             if (this.isCharging) {
-                const progressWidth = (this.chargeTime / this.maxChargeTime) * chargeWidth;
-                const progressX = startX + this.charges * (chargeWidth + chargeSpacing);
-                ctx.fillStyle = 'rgba(66, 66, 255, 0.5)';
-                ctx.fillRect(progressX, chargeY, progressWidth, chargeHeight);
+                const progressWidth = (this.chargeTime / this.maxChargeTime) * (chargeWidth * this.maxCharges + chargeSpacing * (this.maxCharges - 1));
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillRect(startX, chargeY + chargeHeight + 5, progressWidth, 3);
             }
         }
-        
-        // Score caption below the bars
-        ctx.fillStyle = '#fff';
-        ctx.fillText(`Score: ${score}`, x, gemY + barSpacing + 10);
         
         // Reset text align
         ctx.textAlign = 'left';
-
-        // Draw ability cooldowns
-        this.drawAbilityCooldowns();
     }
 
     drawAbilityCooldowns() {
-        const size = 40;
-        const spacing = 45;
+        // Constants for ability display
+        const abilitySize = 40; // Increased from 30 to 40
+        const padding = 5;
+        const spacing = 20; // Increased from 15 to 20
         const margin = 10;
-        const x = margin;
+        const barWidth = 200;
         
-        // Calculate y position based on the gem bar and score position
-        const barSpacing = 25;
+        // Position abilities directly below the health/energy bars
+        const startX = margin + barWidth/2 - (abilitySize + spacing/2);
+        
+        // Calculate Y position based on the status bars
         const healthY = margin;
+        const barHeight = 20;
+        const barSpacing = 25;
         const energyY = healthY + barSpacing;
         const gemY = energyY + barSpacing;
-        const scoreY = gemY + barSpacing + 10;
-        const y = scoreY + 15;
+        const startY = gemY + barHeight + 30; // Increased offset from 15 to 30 to move further down
         
-        // Only draw unlocked abilities
-        let currentX = x;
-        let abilitiesDrawn = 0;
-
-        // Draw ability 1 if unlocked
-        if (this.abilities.ability1.unlocked) {
-            ctx.fillStyle = '#333';
-            ctx.fillRect(currentX, y, size, size);
+        // Check if we have any abilities to display
+        const hasAbility1 = this.abilities.ability1 && this.abilities.ability1.name;
+        const hasAbility2 = this.abilities.ability2 && this.abilities.ability2.name;
+        
+        if (!hasAbility1 && !hasAbility2) return;
+        
+        // Draw ability 1 if it exists
+        if (hasAbility1) {
+            const ability = this.abilities.ability1;
+            const x = startX - (hasAbility2 ? spacing/2 : 0);
+            const y = startY + abilitySize/2;
             
-            if (this.abilities.ability1.cooldown > 0) {
-                const progress = this.abilities.ability1.cooldown / this.abilities.ability1.maxCooldown;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.fillRect(currentX, y + size * (1 - progress), size, size * progress);
+            // Draw ability circle
+            ctx.beginPath();
+            ctx.arc(x, y, abilitySize/2, 0, Math.PI * 2);
+            ctx.fillStyle = ability.cooldown > 0 ? '#555' : '#2a2';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw cooldown overlay if on cooldown
+            if (ability.cooldown > 0) {
+                const cooldownPercent = ability.cooldown / ability.maxCooldown;
+                
+                // Draw circular cooldown indicator (clockwise from top)
+                ctx.fillStyle = '#888';
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.arc(
+                    x, 
+                    y, 
+                    abilitySize/2, 
+                    -Math.PI/2, 
+                    -Math.PI/2 + (2 * Math.PI * (1 - cooldownPercent)), 
+                    false
+                );
+                ctx.closePath();
+                ctx.fill();
             }
             
-            if (this.abilities.ability1.active && this.abilities.ability1.remainingDuration > 0) {
-                const progress = this.abilities.ability1.remainingDuration / this.abilities.ability1.duration;
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-                ctx.fillRect(currentX, y + size * (1 - progress), size, size * progress);
-            }
-            
+            // Draw ability key in the center
             ctx.fillStyle = '#fff';
-            ctx.font = '16px Arial';
+            ctx.font = 'bold 18px Arial'; // Increased from 16px to 18px
             ctx.textAlign = 'center';
-            ctx.fillText('1', currentX + size/2, y + 25);
+            ctx.fillText('1', x, y + 6);
             
-            ctx.font = '12px Arial';
-            ctx.fillText(this.abilities.ability1.name, currentX + size/2, y + size + 15);
-            
-            abilitiesDrawn++;
-            currentX += size + spacing;
-        }
-
-        // Draw ability 2 if unlocked
-        if (this.abilities.ability2.unlocked) {
-            ctx.fillStyle = '#333';
-            ctx.fillRect(currentX, y, size, size);
-            
-            if (this.abilities.ability2.cooldown > 0) {
-                const progress = this.abilities.ability2.cooldown / this.abilities.ability2.maxCooldown;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.fillRect(currentX, y + size * (1 - progress), size, size * progress);
-            }
-            
-            if (this.abilities.ability2.active && this.abilities.ability2.remainingDuration > 0) {
-                const progress = this.abilities.ability2.remainingDuration / this.abilities.ability2.duration;
-                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-                ctx.fillRect(currentX, y + size * (1 - progress), size, size * progress);
-            }
-            
+            // Draw ability name below the circle
             ctx.fillStyle = '#fff';
-            ctx.font = '16px Arial';
-            ctx.fillText('2', currentX + size/2, y + 25);
+            ctx.font = '14px Arial'; // Increased from 12px to 14px
+            ctx.fillText(ability.name, x, y + abilitySize/2 + 20); // Increased offset from 15 to 20
             
-            ctx.font = '12px Arial';
-            ctx.fillText(this.abilities.ability2.name, currentX + size/2, y + size + 15);
+            // Draw tooltip on hover
+            if (mouse.x >= x - abilitySize/2 && mouse.x <= x + abilitySize/2 &&
+                mouse.y >= y - abilitySize/2 && mouse.y <= y + abilitySize/2) {
+                this.drawAbilityTooltip(ability, x, y - 15);
+            }
         }
-
-        // Draw ability tooltips on hover
-        const mouseX = mouse.x;
-        const mouseY = mouse.y;
-
-        if (this.abilities.ability1.unlocked && mouseX >= x && mouseX <= x + size && mouseY >= y && mouseY <= y + size) {
-            this.drawAbilityTooltip(this.abilities.ability1, mouseX, mouseY);
+        
+        // Draw ability 2 if it exists
+        if (hasAbility2) {
+            const ability = this.abilities.ability2;
+            const x = startX + (hasAbility1 ? abilitySize + spacing/2 : 0);
+            const y = startY + abilitySize/2;
+            
+            // Draw ability circle
+            ctx.beginPath();
+            ctx.arc(x, y, abilitySize/2, 0, Math.PI * 2);
+            ctx.fillStyle = ability.cooldown > 0 ? '#555' : '#2a2';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw cooldown overlay if on cooldown
+            if (ability.cooldown > 0) {
+                const cooldownPercent = ability.cooldown / ability.maxCooldown;
+                
+                // Draw circular cooldown indicator (clockwise from top)
+                ctx.fillStyle = '#888';
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.arc(
+                    x, 
+                    y, 
+                    abilitySize/2, 
+                    -Math.PI/2, 
+                    -Math.PI/2 + (2 * Math.PI * (1 - cooldownPercent)), 
+                    false
+                );
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            // Draw ability key in the center
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 18px Arial'; // Increased from 16px to 18px
+            ctx.textAlign = 'center';
+            ctx.fillText('2', x, y + 6);
+            
+            // Draw ability name below the circle
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px Arial'; // Increased from 12px to 14px
+            ctx.fillText(ability.name, x, y + abilitySize/2 + 20); // Increased offset from 15 to 20
+            
+            // Draw tooltip on hover
+            if (mouse.x >= x - abilitySize/2 && mouse.x <= x + abilitySize/2 &&
+                mouse.y >= y - abilitySize/2 && mouse.y <= y + abilitySize/2) {
+                this.drawAbilityTooltip(ability, x, y - 15);
+            }
         }
-        else if (this.abilities.ability2.unlocked && mouseX >= x + size + spacing && mouseX <= x + 2 * size + spacing && mouseY >= y && mouseY <= y + size) {
-            this.drawAbilityTooltip(this.abilities.ability2, mouseX, mouseY);
-        }
-
-        // Draw right-click hint if no abilities are unlocked
-        if (abilitiesDrawn === 0) {
-            ctx.fillStyle = '#666';
-            ctx.font = '14px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('Right-click to unlock abilities', x, y + size/2);
-        }
+        
+        // Reset text alignment
+        ctx.textAlign = 'left';
     }
 
     drawAbilityTooltip(ability, x, y) {
-        const padding = 10;
-        const tooltipWidth = 200;
-        const tooltipHeight = 60;
+        const padding = 8;
+        const lineHeight = 20;
+        
+        // Prepare tooltip text
+        const lines = [
+            ability.name,
+            `Cooldown: ${ability.maxCooldown / 60}s`,
+            ability.description
+        ];
+        
+        // Measure text width for each line
+        ctx.font = 'bold 14px Arial';
+        const titleWidth = ctx.measureText(lines[0]).width;
+        
+        ctx.font = '12px Arial';
+        const cooldownWidth = ctx.measureText(lines[1]).width;
+        
+        // Split description into multiple lines if needed
+        const maxWidth = Math.max(200, Math.max(titleWidth, cooldownWidth) + padding * 2);
+        const descriptionLines = this.wrapText(lines[2], maxWidth - padding * 2);
+        
+        // Calculate tooltip dimensions
+        const tooltipWidth = maxWidth;
+        const tooltipHeight = padding * 2 + lineHeight * (2 + descriptionLines.length);
+        
+        // Position tooltip above the ability icon
+        const tooltipX = x - tooltipWidth / 2;
+        const tooltipY = y - tooltipHeight;
         
         // Draw tooltip background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(x, y - tooltipHeight, tooltipWidth, tooltipHeight);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
         
-        // Draw ability name
-        ctx.fillStyle = '#fff';
-        ctx.font = '14px Arial';
+        // Draw tooltip text
         ctx.textAlign = 'left';
-        ctx.fillText(ability.name, x + padding, y - tooltipHeight + padding + 14);
+        let currentY = tooltipY + padding + lineHeight - 5;
         
-        // Draw description
-        ctx.font = '12px Arial';
+        // Title
+        ctx.fillStyle = ability.color || '#fff';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(lines[0], tooltipX + padding, currentY);
+        currentY += lineHeight;
+        
+        // Cooldown
         ctx.fillStyle = '#aaa';
-        ctx.fillText(ability.description, x + padding, y - tooltipHeight + padding + 32);
+        ctx.font = '12px Arial';
+        ctx.fillText(lines[1], tooltipX + padding, currentY);
+        currentY += lineHeight;
+        
+        // Description
+        ctx.fillStyle = '#fff';
+        descriptionLines.forEach(line => {
+            ctx.fillText(line, tooltipX + padding, currentY);
+            currentY += lineHeight;
+        });
+    }
+
+    // Helper function to wrap text
+    wrapText(text, maxWidth) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = '';
+        
+        ctx.font = '12px Arial';
+        
+        words.forEach(word => {
+            const width = ctx.measureText(currentLine + ' ' + word).width;
+            if (width < maxWidth) {
+                currentLine += (currentLine ? ' ' : '') + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        });
+        
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+        
+        return lines;
     }
 
     move() {

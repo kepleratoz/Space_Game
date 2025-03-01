@@ -204,3 +204,21 @@ function unlockShip(shipName) {
         localStorage.setItem('spaceGameUnlockedShips', JSON.stringify(unlockedShips));
     }
 }
+
+// Export functions to window object
+window.wipeSaveData = wipeSaveData;
+window.saveGame = saveGame;
+window.loadGame = loadGame;
+window.getSaveMetadata = getSaveMetadata;
+window.deleteSave = deleteSave;
+window.initializeSaveSystem = initializeSaveSystem;
+window.getGamesPlayed = getGamesPlayed;
+window.incrementGamesPlayed = incrementGamesPlayed;
+window.getXP = getXP;
+window.addXP = addXP;
+window.getUnlockedShips = getUnlockedShips;
+window.getUnlockedAbilities = getUnlockedAbilities;
+window.unlockAbility = unlockAbility;
+window.isAbilityUnlocked = isAbilityUnlocked;
+window.isShipUnlocked = isShipUnlocked;
+window.unlockShip = unlockShip;

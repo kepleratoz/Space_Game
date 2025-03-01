@@ -6,8 +6,8 @@ window.showingAbilityUnlockScreen = false;
 
 // Class selection UI functions
 function drawClassSelection() {
-    // Clear the screen first
-    ctx.fillStyle = '#000';
+    // Add a semi-transparent dark background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw title
@@ -19,7 +19,7 @@ function drawClassSelection() {
     // Draw XP
     ctx.font = '24px Arial';
     ctx.fillStyle = '#ffd700';
-    ctx.fillText(`XP: ${getXP()}`, canvas.width/2, 150);
+    ctx.fillText(`XP: ${window.getXP()}`, canvas.width/2, 150);
 
     // Add right-click instruction text
     ctx.font = '16px Arial';
@@ -34,7 +34,7 @@ function drawClassSelection() {
     classes.forEach(([className, stats], index) => {
         const x = spacing * (index + 1);
         const y = startY;
-        const isUnlocked = isShipUnlocked(stats.name);
+        const isUnlocked = window.isShipUnlocked(stats.name);
         
         // Calculate card dimensions based on content
         ctx.font = '24px Arial';
@@ -101,7 +101,7 @@ function drawClassSelection() {
             const btnX = x - unlockBtnWidth/2;
             const btnY = y + 10;
             
-            const canAfford = getXP() >= stats.xpRequired;
+            const canAfford = window.getXP() >= stats.xpRequired;
             ctx.fillStyle = canAfford ? '#2ecc71' : '#e74c3c';
             ctx.fillRect(btnX, btnY, unlockBtnWidth, unlockBtnHeight);  // Changed to fillRect
             ctx.strokeStyle = '#ffffff';
@@ -145,14 +145,42 @@ function drawClassSelection() {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('START GAME', startGameBtn.x + startGameBtn.width/2, startGameBtn.y + 33);
+    ctx.fillText('SELECT SHIP', startGameBtn.x + startGameBtn.width/2, startGameBtn.y + 33);
 
     // Draw selected ship name or default text above button
     ctx.font = '20px Arial';
     const displayText = selectedClass ? `Selected: ${selectedClass.name}` : 'Default: Fighter';
     ctx.fillText(displayText, startGameBtn.x + startGameBtn.width/2, startGameBtn.y - 20);
 
+    // Draw "Return to Station" button at the bottom
+    const returnBtn = {
+        x: canvas.width/2 - 100,
+        y: canvas.height - 80,
+        width: 200,
+        height: 40
+    };
+
+    // Draw button background with hover effect
+    ctx.fillStyle = mouse.x >= returnBtn.x && 
+                   mouse.x <= returnBtn.x + returnBtn.width &&
+                   mouse.y >= returnBtn.y && 
+                   mouse.y <= returnBtn.y + returnBtn.height
+                   ? '#e74c3c' : '#c0392b';  // Lighter red on hover
+    ctx.fillRect(returnBtn.x, returnBtn.y, returnBtn.width, returnBtn.height);
+
+    // Draw white outline
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(returnBtn.x, returnBtn.y, returnBtn.width, returnBtn.height);
+
+    // Draw text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('RETURN TO STATION', returnBtn.x + returnBtn.width/2, returnBtn.y + 25);
+
     window.startGameBtn = startGameBtn; // Store button coordinates globally
+    window.returnToStationBtn = returnBtn; // Store return button coordinates
 }
 
 function drawArchetypeCard(ship, x, y, isBase = false) {
@@ -329,7 +357,7 @@ function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
     );
 
     // Card background
-    const isUnlocked = isAbilityUnlocked(selectedShipForAbilities, ability.name);
+    const isUnlocked = window.isAbilityUnlocked(selectedShipForAbilities, ability.name);
     ctx.fillStyle = isUnlocked ? '#2c3e50' : '#34495e';
     ctx.fillRect(x, y, cardWidth, cardHeight);  // Changed to fillRect
 
@@ -362,7 +390,7 @@ function drawAbilityCard(ability, x, y, width, height, isAbility2 = false) {
         const btnY = y + cardHeight - padding - buttonHeight;
         const xpCost = isAbility2 ? 1200 : 750;
 
-        const canAfford = getXP() >= xpCost;
+        const canAfford = window.getXP() >= xpCost;
         ctx.fillStyle = canAfford ? 
             (mouse.x >= btnX && mouse.x <= btnX + btnWidth &&
              mouse.y >= btnY && mouse.y <= btnY + buttonHeight ? '#27ae60' : '#2ecc71') :
@@ -431,6 +459,31 @@ function calculateCardDimensions(ship, isUnlocked = true) {
     return { cardWidth, cardHeight };
 }
 
+// Add this function before handleClassSelectionClick
+function tryUnlockShip(className) {
+    // Get the ship class using the className key
+    const shipClass = SHIP_CLASSES[className];
+    
+    if (!shipClass) {
+        console.error(`Ship class not found: ${className}`);
+        return;
+    }
+    
+    // Get the required XP from the ship class
+    const requiredXP = shipClass.xpRequired;
+    const currentXP = window.getXP();
+    
+    if (currentXP >= requiredXP) {
+        // Deduct XP and unlock the ship
+        window.addXP(-requiredXP);
+        window.unlockShip(shipClass.name);
+        showNotification(`Unlocked ${shipClass.name}!`, 'success');
+    } else {
+        // Not enough XP
+        showNotification(`Need ${requiredXP - currentXP} more XP to unlock ${shipClass.name}`, 'warning');
+    }
+}
+
 // Update the click handler for class selection
 function handleClassSelectionClick(mouseX, mouseY, isRightClick = false) {
     const classes = Object.entries(SHIP_CLASSES);
@@ -441,7 +494,7 @@ function handleClassSelectionClick(mouseX, mouseY, isRightClick = false) {
     classes.forEach(([className, stats], index) => {
         const x = spacing * (index + 1);
         const y = startY;
-        const isUnlocked = isShipUnlocked(stats.name);
+        const isUnlocked = window.isShipUnlocked(stats.name);
         
         // Calculate card dimensions exactly as in drawClassSelection
         ctx.font = '24px Arial';
@@ -591,7 +644,7 @@ function handleAbilityUnlockClick(mouseX, mouseY) {
 
 function tryUnlockAbility(ability, isAbility2 = false) {
     const xpCost = isAbility2 ? 1200 : 750; // Fixed XP costs
-    const currentXP = getXP();
+    const currentXP = window.getXP();
     
     if (currentXP < xpCost) {
         showNotification(`Need ${xpCost} XP to unlock ${ability.name}!`, 'warning');
@@ -603,7 +656,7 @@ function tryUnlockAbility(ability, isAbility2 = false) {
     localStorage.setItem('spaceGameXP', String(remainingXP));
     
     // Unlock ability
-    unlockAbility(selectedShipForAbilities, ability.name);
+    window.unlockAbility(selectedShipForAbilities, ability.name);
     showNotification(`${ability.name} unlocked!`, 'success');
 }
 
@@ -625,9 +678,24 @@ function startGame(className, archetype = null) {
         player.upgradeLevel = window.shipLevels[shipClass.name].upgradeLevel;
         player.gems = window.shipLevels[shipClass.name].gems;
         
+        // Position player just outside the ship selection portal
+        // Calculate position based on STATION.SHIP_OPENING
+        const portalX = STATION.WIDTH - WALL_WIDTH;
+        const portalY = STATION.HEIGHT / 2;
+        
+        // Position player 50 pixels to the left of the portal
+        player.x = portalX - 50;
+        player.y = portalY;
+        
         // Return to station
-        gameState = GAME_STATES.STATION;
+        window.currentZone = GAME_ZONES.STATION;
+        gameState = GAME_STATES.PLAYING;
+        
+        // Set camera to follow player
+        camera.follow(player);
+        
         showNotification(`Switched to ${shipClass.name} ship!`);
+        return;
     } else {
         // Reset game state first
         if (typeof window.resetGameState === 'function') {
@@ -652,24 +720,24 @@ function startGame(className, archetype = null) {
             player.applyArchetype(shipClass.archetypes[archetype]);
         }
         
-        // Start in testing zone
-        window.currentZone = GAME_ZONES.TESTING;
-        window.enemiesKilledInTestingZone = 0;
+        // Start in station instead of testing zone
+        window.currentZone = GAME_ZONES.STATION;
         
-        // Generate testing zone lines if the function is available
-        if (typeof window.generateTestingZoneLines === 'function') {
-            window.generateTestingZoneLines();
-        }
+        // Position player just outside the ship selection portal for new games too
+        const portalX = STATION.WIDTH - WALL_WIDTH;
+        const portalY = STATION.HEIGHT / 2;
         
-        // Position player in center of testing zone
-        player.x = TESTING_ZONE.WIDTH / 2;
-        player.y = TESTING_ZONE.HEIGHT / 2;
+        // Position player 50 pixels to the left of the portal
+        player.x = portalX - 50;
+        player.y = portalY;
         
         // Set camera to follow player
         camera.follow(player);
         
         // Change game state to playing
         gameState = GAME_STATES.PLAYING;
+        
+        showNotification(`Starting game with ${shipClass.name} ship!`);
     }
 }
 

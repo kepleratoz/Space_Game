@@ -28,6 +28,7 @@ let score = 0;
 // Settings management
 let settings = {
     maxFPS: 60,
+    showFPS: true,
     controlMode: 'mouse', // 'mouse' or 'keyboard'
     keybinds: {
         up: 'w',
@@ -43,6 +44,7 @@ let settings = {
 // Default settings for easy restoration
 const DEFAULT_SETTINGS = {
     maxFPS: 60,
+    showFPS: true,
     controlMode: 'mouse',
     keybinds: {
         up: 'w',
@@ -63,6 +65,7 @@ function loadSettings() {
         settings = {
             ...settings,
             maxFPS: loaded.maxFPS || DEFAULT_SETTINGS.maxFPS,
+            showFPS: loaded.showFPS !== undefined ? loaded.showFPS : DEFAULT_SETTINGS.showFPS,
             controlMode: loaded.controlMode || DEFAULT_SETTINGS.controlMode,
             keybinds: { ...settings.keybinds, ...loaded.keybinds }
         };

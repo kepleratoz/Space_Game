@@ -7,15 +7,26 @@ class DamageNumber {
         this.y = y;
         this.amount = Math.round(amount);
         this.color = color;
-        this.life = 30; // 0.5 seconds at 60 FPS
-        this.velocityY = -2; // Float upward
+        this.life = 45; // Increased from 30 to 45 (0.75 seconds at 60 FPS)
+        this.velocityY = -1.5; // Slightly slower upward movement
         this.alpha = 1;
+        
+        // Scale based on damage amount - larger damage = larger text
+        // Base size is 1.0, with a bonus of up to 0.5 for high damage
+        const damageScale = Math.min(0.5, this.amount / 50); // Cap at 50 damage for max size
+        this.scale = 1.0 + damageScale;
     }
 
     update() {
         this.y += this.velocityY;
         this.life--;
-        this.alpha = this.life / 30;
+        this.alpha = this.life / 45;
+        
+        // Scale down slightly as it fades
+        if (this.life < 15) {
+            this.scale = Math.max(0.8, this.scale - 0.02);
+        }
+        
         return this.life <= 0;
     }
 
@@ -25,8 +36,19 @@ class DamageNumber {
         
         ctx.save();
         ctx.globalAlpha = this.alpha;
+        
+        // Add text shadow/outline for better visibility
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        
+        // Use color based on damage amount
         ctx.fillStyle = this.color;
-        ctx.font = 'bold 16px Arial';
+        
+        // Font size based on scale
+        const fontSize = Math.floor(16 * this.scale);
+        ctx.font = `bold ${fontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.fillText(this.amount, screenX, screenY);
         ctx.restore();

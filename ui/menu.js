@@ -4,9 +4,8 @@ function drawPauseButton() {
     const x = canvas.width - buttonSize - margin;
     const y = margin;
     
-    // Draw button background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(x, y, buttonSize, buttonSize);
+    // Remove button background
+    // No background box, just draw the pause/play icon directly
     
     // Draw pause icon or play icon
     ctx.fillStyle = '#fff';
@@ -25,10 +24,41 @@ function drawPauseButton() {
     }
 }
 
+function drawZoneInfo() {
+    // Draw zone name at the top
+    let zoneNameText = '';
+    switch(window.currentZone) {
+        case GAME_ZONES.MAIN:
+            zoneNameText = 'Main Game';
+            break;
+        case GAME_ZONES.TESTING:
+            zoneNameText = 'Testing Zone';
+            break;
+        case GAME_ZONES.STATION:
+            zoneNameText = 'Space Station';
+            break;
+    }
+    
+    ctx.font = '24px Arial';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(zoneNameText, canvas.width / 2, 35);
+    
+    // If in testing zone, show enemies killed counter
+    if (window.currentZone === GAME_ZONES.TESTING) {
+        const killsText = `Enemies Killed: ${window.enemiesKilledInTestingZone}/20`;
+        ctx.font = '20px Arial';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(killsText, canvas.width / 2, 70);
+    }
+}
+
 function drawPauseScreen() {
     // Semi-transparent dark overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Reduced opacity from 0.7 to 0.5 to see the game better
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // No need to draw zone info here as it's already drawn in the game loop
     
     // Title with shadow
     ctx.shadowColor = '#000';
@@ -80,9 +110,9 @@ function drawPauseScreen() {
     ctx.fillText('Exit to Title', canvas.width/2, exitBtn.y + 32);
     
     // Instructions text
-    ctx.font = '20px Arial';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText('Press P to resume', canvas.width/2, canvas.height/2 + 180);
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#ddd';
+    ctx.fillText('Press ESC to resume', canvas.width/2, canvas.height/2 + 100);
 }
 
 function showNotification(message, type = 'success') {
@@ -168,29 +198,7 @@ function drawGameOver() {
     ctx.fillText(`Ship: ${player.shipClass.name}`, canvas.width/2, statsY);
     ctx.fillText(`Waves Cleared: ${window.waveNumber - 1}`, canvas.width/2, statsY + lineSpacing);
     ctx.fillText(`Time Played: ${minutes}:${seconds.toString().padStart(2, '0')}`, canvas.width/2, statsY + lineSpacing * 2);
-    ctx.fillText(`Score: ${score}`, canvas.width/2, statsY + lineSpacing * 3);
-    
-    // Draw XP gained with gold color
-    ctx.fillStyle = '#ffd700';
-    ctx.fillText(`XP Gained: ${xpGained}`, canvas.width/2, statsY + lineSpacing * 4);
-
-    // Draw exit button
-    const exitBtn = {
-        x: canvas.width/2 - 150,
-        y: statsY + lineSpacing * 5,
-        width: 300,
-        height: 50
-    };
-    
-    ctx.fillStyle = mouse.x >= exitBtn.x && mouse.x <= exitBtn.x + exitBtn.width &&
-                   mouse.y >= exitBtn.y && mouse.y <= exitBtn.y + exitBtn.height
-                   ? '#e74c3c' : '#c0392b';
-    ctx.beginPath();
-    ctx.roundRect(exitBtn.x, exitBtn.y, exitBtn.width, exitBtn.height, 8);
-    ctx.fill();
-    
-    ctx.fillStyle = '#fff';
-    ctx.fillText('Return to Title', canvas.width/2, exitBtn.y + 32);
+    ctx.fillText(`XP Gained: ${xpGained}`, canvas.width/2, statsY + lineSpacing * 3);
 }
 
 function drawSettingsButton() {
@@ -199,9 +207,8 @@ function drawSettingsButton() {
     const x = canvas.width - buttonSize - margin;
     const y = margin + buttonSize + 10; // Position below pause button
     
-    // Draw button background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(x, y, buttonSize, buttonSize);
+    // Remove button background
+    // No background box, just draw the settings gear icon directly
     
     // Draw settings gear icon
     ctx.strokeStyle = '#fff';
@@ -274,11 +281,45 @@ function drawSettingsMenu() {
         ctx.font = '20px Arial';
         ctx.fillText(fps, x + buttonWidth/2, y + 25);
     });
+    
+    // Show FPS Counter toggle
+    const showFpsToggleY = y + 70;
+    
+    // FPS Counter label
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Arial';
+    ctx.fillText('Show FPS Counter:', canvas.width/2, showFpsToggleY);
+    
+    // Draw toggle buttons
+    const toggleWidth = 80;
+    const toggleHeight = 40;
+    const toggleSpacing = 20;
+    const toggleStartX = canvas.width/2 - toggleWidth - toggleSpacing/2;
+    
+    // ON button
+    ctx.fillStyle = settings.showFPS ? '#4CAF50' : 'rgba(255, 255, 255, 0.1)';
+    ctx.beginPath();
+    ctx.roundRect(toggleStartX, showFpsToggleY + 10, toggleWidth, toggleHeight, 8);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('ON', toggleStartX + toggleWidth/2, showFpsToggleY + 35);
+    
+    // OFF button
+    ctx.fillStyle = !settings.showFPS ? '#e74c3c' : 'rgba(255, 255, 255, 0.1)';
+    ctx.beginPath();
+    ctx.roundRect(toggleStartX + toggleWidth + toggleSpacing, showFpsToggleY + 10, toggleWidth, toggleHeight, 8);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.fillText('OFF', toggleStartX + toggleWidth + toggleSpacing + toggleWidth/2, showFpsToggleY + 35);
 
     // Draw back button
     const backBtn = {
         x: canvas.width/2 - 150,
-        y: canvas.height/2 + 100,
+        y: canvas.height/2 + 150, // Moved down to make room for the FPS toggle
         width: 300,
         height: 50
     };
@@ -296,20 +337,15 @@ function drawSettingsMenu() {
 }
 
 function drawShipClassDisplay() {
-    if (!player || gameState !== GAME_STATES.PLAYING) return;
-
     const margin = 10;
-    const padding = 10;
+    const padding = 5; // Reduced padding
     const boxWidth = 150;
     const boxHeight = 60;
     const x = margin;
     const y = canvas.height - boxHeight - margin;
 
-    // Draw background box
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.beginPath();
-    ctx.roundRect(x, y, boxWidth, boxHeight, 8);
-    ctx.fill();
+    // Remove background box
+    // No background box, just draw the ship class info directly
 
     // Draw ship class name
     ctx.fillStyle = player.shipClass.color || '#fff';
@@ -332,7 +368,11 @@ function drawShipClassDisplay() {
 function drawGameUI() {
     drawMinimap();
     player.drawStatusBars();
+    player.drawAbilityCooldowns();
     drawDebugInfo();
     drawPauseButton();
     drawShipClassDisplay();
+    
+    // Draw zone info
+    drawZoneInfo();
 }

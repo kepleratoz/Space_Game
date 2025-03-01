@@ -184,237 +184,77 @@ window.addEventListener('keyup', (e) => {
 });
 
 canvas.addEventListener('click', (e) => {
-    // Check if we're in class selection state
-    if (gameState === GAME_STATES.CLASS_SELECT) {
-        // Check ability unlock screen first
-        if (showingAbilityUnlockScreen) {
-            handleAbilityUnlockClick(e.clientX, e.clientY);
-            return;
-        }
-
-        // Check start game button
-        const startGameBtn = {
-            x: canvas.width/2 - 100,
-            y: canvas.height - 150,
-            width: 200,
-            height: 50
-        };
-
-        if (e.clientX >= startGameBtn.x && e.clientX <= startGameBtn.x + startGameBtn.width &&
-            e.clientY >= startGameBtn.y && e.clientY <= startGameBtn.y + startGameBtn.height) {
-            if (selectedClass) {
-                startGame(selectedShipClass, selectedClass.archetype || null);
-            } else {
-                // Default to Fighter if no ship is selected
-                startGame('FIGHTER', null);
-            }
-            return;
-        }
-
-        // Handle ship selection using handleClassSelectionClick
-        handleClassSelectionClick(e.clientX, e.clientY, false);
-    }
-
-    // Check pause button click
-    const buttonSize = 30;
-    const margin = 10;
-    const x = canvas.width - buttonSize - margin;
-    const y = margin;
+    // Get mouse position relative to canvas
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
     
-    if (e.clientX >= x && e.clientX <= x + buttonSize &&
-        e.clientY >= y && e.clientY <= y + buttonSize) {
-        if (gameState === GAME_STATES.PLAYING) {
-            gameState = GAME_STATES.PAUSED;
-            isPaused = true;
-        } else if (gameState === GAME_STATES.PAUSED) {
-            gameState = GAME_STATES.PLAYING;
-            isPaused = false;
-        }
-        return;
-    }
-
+    // Handle clicks based on game state
     if (gameState === GAME_STATES.CLASS_SELECT) {
-        // Check wipe save button
-        const wipeBtn = {
-            x: 20,
-            y: 20,
-            width: 140,
-            height: 40
-        };
-        
-        if (e.clientX >= wipeBtn.x && e.clientX <= wipeBtn.x + wipeBtn.width &&
-            e.clientY >= wipeBtn.y && e.clientY <= wipeBtn.y + wipeBtn.height) {
-            wipeSaveData();
+        // Check if we're showing the ability unlock screen
+        if (showingAbilityUnlockScreen && selectedShipForAbilities) {
+            handleAbilityUnlockClick(mouseX, mouseY);
             return;
         }
-
-        // Check save button click if game is in progress
-        if (player) {
-            const saveBtn = {
-                x: canvas.width - 160,
-                y: 20,
-                width: 140,
-                height: 40
-            };
-            
-            if (e.clientX >= saveBtn.x && e.clientX <= saveBtn.x + saveBtn.width &&
-                e.clientY >= saveBtn.y && e.clientY <= saveBtn.y + saveBtn.height) {
-                saveGame(1); // Save to slot 1 by default
+        
+        // Check if click is on start game button
+        if (startGameBtn) {
+            if (mouseX >= startGameBtn.x && 
+                mouseX <= startGameBtn.x + startGameBtn.width &&
+                mouseY >= startGameBtn.y && 
+                mouseY <= startGameBtn.y + startGameBtn.height) {
+                startGame(selectedShipClass || 'FIGHTER');
                 return;
             }
         }
-
-        // Check settings button
-        const settingsX = canvas.width - buttonSize - margin;
-        const settingsY = margin + buttonSize + 10;
         
-        if (e.clientX >= settingsX && e.clientX <= settingsX + buttonSize &&
-            e.clientY >= settingsY && e.clientY <= settingsY + buttonSize) {
+        // Check if click is on return to station button
+        if (returnToStationBtn) {
+            if (mouseX >= returnToStationBtn.x && 
+                mouseX <= returnToStationBtn.x + returnToStationBtn.width &&
+                mouseY >= returnToStationBtn.y && 
+                mouseY <= returnToStationBtn.y + returnToStationBtn.height) {
+                // Return to station without changing ship
+                gameState = GAME_STATES.PLAYING;
+                return;
+            }
+        }
+        
+        // Handle ship selection clicks
+        handleClassSelectionClick(mouseX, mouseY);
+        return;
+    }
+    
+    // Handle clicks in settings menu
+    if (gameState === GAME_STATES.SETTINGS) {
+        handleSettingsClick(mouseX, mouseY);
+        return;
+    }
+    
+    // Handle clicks in game over screen
+    if (gameState === GAME_STATES.GAME_OVER) {
+        handleGameOverClick(mouseX, mouseY);
+        return;
+    }
+    
+    // Handle clicks in pause screen
+    if (gameState === GAME_STATES.PAUSED) {
+        handlePauseScreenClick(mouseX, mouseY);
+        return;
+    }
+    
+    // Handle clicks in the main game
+    if (gameState === GAME_STATES.PLAYING) {
+        // Check if click is on settings button
+        if (isClickOnSettingsButton(mouseX, mouseY)) {
             gameState = GAME_STATES.SETTINGS;
             return;
         }
-
-        return;
-    }
-
-    // Handle pause menu clicks
-    if (gameState === GAME_STATES.PAUSED) {
-        // Resume button
-        const resumeBtn = {
-            x: canvas.width/2 - 150,
-            y: canvas.height/2 - 50,
-            width: 300,
-            height: 50
-        };
         
-        if (e.clientX >= resumeBtn.x && e.clientX <= resumeBtn.x + resumeBtn.width &&
-            e.clientY >= resumeBtn.y && e.clientY <= resumeBtn.y + resumeBtn.height) {
-            gameState = GAME_STATES.PLAYING;
-            isPaused = false;
-            return;
+        // Handle player shooting
+        if (player && player.canShoot()) {
+            player.shoot();
         }
-
-        // Exit button
-        const exitBtn = {
-            x: canvas.width/2 - 150,
-            y: canvas.height/2 + 20,
-            width: 300,
-            height: 50
-        };
-        
-        if (e.clientX >= exitBtn.x && e.clientX <= exitBtn.x + exitBtn.width &&
-            e.clientY >= exitBtn.y && e.clientY <= exitBtn.y + exitBtn.height) {
-            // Add XP before exiting
-            const xpGained = Math.floor(score / 100);
-            addXP(xpGained);
-            showNotification(`Gained ${xpGained} XP!`);
-            
-            // Save the game before exiting
-            saveGame(1);
-            // Reset game state without incrementing games played
-            gameState = GAME_STATES.CLASS_SELECT;
-            isPaused = false;
-            return;
-        }
-    }
-
-    // Check save button click in class selection
-    if (gameState === GAME_STATES.CLASS_SELECT && player) {
-        const saveBtn = {
-            x: canvas.width - 160,
-            y: 20,
-            width: 140,
-            height: 40
-        };
-        
-        if (e.clientX >= saveBtn.x && e.clientX <= saveBtn.x + saveBtn.width &&
-            e.clientY >= saveBtn.y && e.clientY <= saveBtn.y + saveBtn.height) {
-            saveGame(1); // Save to slot 1 by default
-            return;
-        }
-    }
-
-    // Handle save slot clicks when paused
-    if (gameState === GAME_STATES.PAUSED) {
-        for (let i = 1; i <= 3; i++) {
-            const btn = {
-                x: canvas.width/2 - 150,
-                y: canvas.height/2 - 80 + (i - 1) * 60,
-                width: 300,
-                height: 50
-            };
-            
-            if (e.clientX >= btn.x && e.clientX <= btn.x + btn.width &&
-                e.clientY >= btn.y && e.clientY <= btn.y + btn.height) {
-                saveGame(i);
-                return;
-            }
-        }
-    }
-
-    // Handle game over screen exit button
-    if (gameState === GAME_STATES.GAME_OVER || gameOver) {
-        const statsY = canvas.height/2 - 50;
-        const lineSpacing = 35;
-        const exitBtn = {
-            x: canvas.width/2 - 150,
-            y: statsY + lineSpacing * 5,
-            width: 300,
-            height: 50
-        };
-        
-        if (e.clientX >= exitBtn.x && e.clientX <= exitBtn.x + exitBtn.width &&
-            e.clientY >= exitBtn.y && e.clientY <= exitBtn.y + exitBtn.height) {
-            // Add XP before exiting
-            const xpGained = Math.floor(score / 100);
-            addXP(xpGained);
-            
-            // Reset game state
-            gameState = GAME_STATES.CLASS_SELECT;
-            gameOver = false;
-            player = null;
-            return;
-        }
-    }
-
-    // Handle settings menu clicks
-    if (gameState === GAME_STATES.SETTINGS) {
-        // FPS options
-        const fpsOptions = [30, 60, 120, 144, 240];
-        const buttonWidth = 60;
-        const buttonHeight = 40;
-        const startX = canvas.width/2 - (fpsOptions.length * buttonWidth + (fpsOptions.length - 1) * 10)/2;
-        const y = canvas.height/2;
-
-        // Check FPS button clicks
-        fpsOptions.forEach((fps, index) => {
-            const x = startX + index * (buttonWidth + 10);
-            if (e.clientX >= x && e.clientX <= x + buttonWidth &&
-                e.clientY >= y && e.clientY <= y + buttonHeight) {
-                settings.maxFPS = fps;
-                saveSettings();
-                return;
-            }
-        });
-
-        // Check back button click
-        const backBtn = {
-            x: canvas.width/2 - 150,
-            y: canvas.height/2 + 100,
-            width: 300,
-            height: 50
-        };
-        
-        if (e.clientX >= backBtn.x && e.clientX <= backBtn.x + backBtn.width &&
-            e.clientY >= backBtn.y && e.clientY <= backBtn.y + backBtn.height) {
-            gameState = GAME_STATES.CLASS_SELECT;
-            return;
-        }
-    }
-
-    // Remove ability unlock screen click handler for gameplay
-    if (gameState === GAME_STATES.PLAYING && player) {
-        return;
     }
 });
 
@@ -437,3 +277,18 @@ canvas.addEventListener('mousedown', (e) => {
         }
     }
 });
+
+// Add the missing isClickOnSettingsButton function
+function isClickOnSettingsButton(mouseX, mouseY) {
+    // Settings button is typically in the top-right corner
+    const buttonSize = 30;
+    const margin = 10;
+    const x = canvas.width - buttonSize - margin;
+    const y = margin;
+    
+    return mouseX >= x && mouseX <= x + buttonSize &&
+           mouseY >= y && mouseY <= y + buttonSize;
+}
+
+// Make the function globally available
+window.isClickOnSettingsButton = isClickOnSettingsButton;

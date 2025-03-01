@@ -4,9 +4,14 @@ function drawMinimap() {
     const mapY = 10;
     const mapScale = mapSize / WORLD_WIDTH;
 
-    // Draw map background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    // Draw map background with completely opaque gray color
+    ctx.fillStyle = '#333333'; // Solid dark gray background
     ctx.fillRect(mapX, mapY, mapSize, mapSize);
+    
+    // Add a border for better visibility
+    ctx.strokeStyle = '#666666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(mapX, mapY, mapSize, mapSize);
 
     // Draw player
     ctx.fillStyle = '#00ff00';

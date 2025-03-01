@@ -115,3 +115,9 @@ A fast-paced space combat game where you pilot different ships, collect gems, an
 - Use asteroids for cover
 - Time your ability usage strategically
 
+### Tasks
+Finish Station
+Add archetypes to other classes
+Add bosses
+Add more abilities
+

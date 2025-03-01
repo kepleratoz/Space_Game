@@ -310,19 +310,6 @@ function spawnObjects() {
         }
     }
 
-    // Display current zone at the top of the screen
-    ctx.fillStyle = '#fff';
-    ctx.font = '24px Arial';
-    ctx.textAlign = 'center';
-    const zoneName = window.currentZone === GAME_ZONES.TESTING ? 'Testing Zone' : window.currentZone === GAME_ZONES.MAIN ? 'Main Game' : 'Station';
-    ctx.fillText(zoneName, canvas.width / 2, 30);
-    
-    // If in testing zone, show enemies killed counter
-    if (window.currentZone === GAME_ZONES.TESTING) {
-        ctx.font = '20px Arial';
-        ctx.fillText(`Enemies Killed: ${window.enemiesKilledInTestingZone}/20`, canvas.width / 2, 60);
-    }
-
     // Testing Zone spawn logic
     if (window.currentZone === GAME_ZONES.TESTING) {
         const currentTime = Date.now();

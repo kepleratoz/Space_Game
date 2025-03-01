@@ -166,32 +166,30 @@ class ChaserEnemy extends Enemy {
 class ShooterEnemy extends Enemy {
     constructor(x, y) {
         super(x, y);
-        this.width = 40;
-        this.height = 40;
+        this.width = 30; // Reduced from 40 to 30 (75%)
+        this.height = 30; // Reduced from 40 to 30 (75%)
         this.health = 50;
         this.maxHealth = 50;
         this.damage = 10;
         this.shootCooldown = 0;
         this.shootInterval = 90; // 1.5 seconds at 60 FPS
         this.laserSpeed = 6;
-        this.laserWidth = 10;
-        this.laserHeight = 20;
-        this.color = '#ff00ff'; // Magenta color
+        this.laserWidth = 7.5; // Reduced from 10 to 7.5 (75%)
+        this.laserHeight = 7.5; // Reduced from 10 to 7.5 (75%)
+        this.color = '#ff0000'; // Changed to red
         this.maxSpeed = 2;
-        this.aggroRange = 800; // Increased from 500
-        this.shootRange = 600; // Increased from 400
+        this.aggroRange = 800;
+        this.shootRange = 600;
         this.idleSpeed = 0.5;
         this.idleAngle = Math.random() * Math.PI * 2;
         this.idleTimer = 0;
         this.idleChangeInterval = 180;
-        this.type = 'Shooter'; // Add type
+        this.type = 'Shooter';
     }
 
     drawShape(x, y) {
-        // Draw main body
+        // Draw a simple red square
         ctx.fillRect(x - this.width/2, y - this.height/2, this.width, this.height);
-        // Draw gun barrel in front
-        ctx.fillRect(x, y - this.width/6, this.height/2, this.width/3);
     }
 
     behavior() {
@@ -248,27 +246,17 @@ class ShooterEnemy extends Enemy {
             x: this.x + Math.cos(this.rotation) * (this.width/2 + 5),
             y: this.y + Math.sin(this.rotation) * (this.width/2 + 5),
             width: this.laserWidth,
-            height: this.laserHeight,
+            height: this.laserWidth, // Using laserWidth to keep bullets square
             velocityX: velocityX,
             velocityY: velocityY,
             damage: this.damage,
             angle: this.rotation,
-            color: this.color // Use the enemy's color for the projectile
+            color: '#ff0000' // Red color for projectiles
         });
     }
 
     draw() {
         super.draw();
-        
-        // Draw projectiles if they exist
-        if (typeof enemyProjectiles !== 'undefined') {
-            ctx.fillStyle = '#ff0000';
-            enemyProjectiles.forEach(projectile => {
-                const screenX = projectile.x - camera.x;
-                const screenY = projectile.y - camera.y;
-                ctx.fillRect(screenX - projectile.width/2, screenY - projectile.height/2, projectile.width, projectile.height);
-            });
-        }
     }
 }
 
