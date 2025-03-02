@@ -15,6 +15,7 @@ class Enemy {
         this.lastRamTime = 0; // Track the last time this enemy was rammed
         this.isRamDamage = false; // Flag to track if damage is from ramming
         this.type = 'Enemy'; // Add base type
+        this.drops = []; // Array of possible item drops with chances
     }
 
     draw() {
@@ -138,6 +139,36 @@ class Enemy {
             const offsetX = (Math.random() - 0.5) * 20;
             const offsetY = (Math.random() - 0.5) * 20;
             damageNumbers.push(new DamageNumber(this.x + offsetX, this.y + offsetY, amount, '#ff0000'));
+        }
+
+        // Check if enemy is defeated
+        if (this.health <= 0) {
+            this.dropItems();
+        }
+    }
+
+    dropItems() {
+        // Process drops based on drop table
+        if (this.drops && this.drops.length > 0) {
+            for (const drop of this.drops) {
+                const roll = Math.random();
+                if (roll < drop.chance) {
+                    // Create the item
+                    if (typeof drop.itemClass === 'function') {
+                        // Add small random offset to prevent items from stacking
+                        const offsetX = (Math.random() - 0.5) * 20;
+                        const offsetY = (Math.random() - 0.5) * 20;
+                        
+                        // Create and add the item to the game
+                        if (typeof window.items !== 'undefined') {
+                            window.items.push(new drop.itemClass(this.x + offsetX, this.y + offsetY));
+                        } else {
+                            // If items array doesn't exist yet, create it
+                            window.items = [new drop.itemClass(this.x + offsetX, this.y + offsetY)];
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -781,6 +812,11 @@ class AutomatedSentry extends Enemy {
         this.shootRange = 700;
         this.type = 'Automated Sentry';
         this.rotationSpeed = 0.01; // Slow rotation
+        
+        // Set up drops - 50% chance to drop Rusted Plating
+        this.drops = [
+            { itemClass: RustedPlating, chance: 0.5 }
+        ];
     }
 
     drawShape(x, y) {

@@ -44,7 +44,21 @@ class Player {
         // Add respawn effect properties
         this.respawnFlashEffect = 0;
         this.respawnFlashDuration = 60;
-
+        
+        // Store base stats for item effects
+        this.baseStats = {
+            maxHealth: this.maxHealth,
+            health: this.health,
+            maxSpeed: this.maxSpeed,
+            acceleration: this.acceleration,
+            rotationalAcceleration: this.rotationalAcceleration,
+            shootCost: this.shootCost,
+            maxEnergy: this.maxEnergy,
+            energyRegen: this.energyRegen,
+            healthRegen: this.healthRegen,
+            damageMultiplier: this.damageMultiplier
+        };
+        
         // Add drift properties for Speedster and Assault Fighter
         if (shipClass.name === 'Speedster' || shipClass.name === 'Assault Fighter') {
             this.isDrifting = false;
@@ -189,6 +203,33 @@ class Player {
             this.isViewportMode = false;
             this.viewportEnergyCost = 5/60; // 5 energy per second (divided by 60 for per-frame cost)
         }
+        
+        // Initialize inventory
+        if (typeof initializeInventory === 'function') {
+            initializeInventory(this);
+        }
+    }
+
+    /**
+     * Reset player stats to base values (before item effects)
+     */
+    resetToBaseStats() {
+        // Store current health percentage
+        const healthPercentage = this.health / this.maxHealth;
+        
+        // Reset stats to base values
+        this.maxHealth = this.baseStats.maxHealth;
+        this.maxSpeed = this.baseStats.maxSpeed;
+        this.acceleration = this.baseStats.acceleration;
+        this.rotationalAcceleration = this.baseStats.rotationalAcceleration;
+        this.shootCost = this.baseStats.shootCost;
+        this.maxEnergy = this.baseStats.maxEnergy;
+        this.energyRegen = this.baseStats.energyRegen;
+        this.healthRegen = this.baseStats.healthRegen;
+        this.damageMultiplier = this.baseStats.damageMultiplier;
+        
+        // Apply health percentage to new max health
+        this.health = this.maxHealth * healthPercentage;
     }
 
     draw() {
@@ -1841,5 +1882,27 @@ class Player {
         
         // No cooldown for charged shots
         this.shootCooldown = 0;
+    }
+
+    /**
+     * Reset player stats to base values (before item effects)
+     */
+    resetToBaseStats() {
+        // Store current health percentage
+        const healthPercentage = this.health / this.maxHealth;
+        
+        // Reset stats to base values
+        this.maxHealth = this.baseStats.maxHealth;
+        this.maxSpeed = this.baseStats.maxSpeed;
+        this.acceleration = this.baseStats.acceleration;
+        this.rotationalAcceleration = this.baseStats.rotationalAcceleration;
+        this.shootCost = this.baseStats.shootCost;
+        this.maxEnergy = this.baseStats.maxEnergy;
+        this.energyRegen = this.baseStats.energyRegen;
+        this.healthRegen = this.baseStats.healthRegen;
+        this.damageMultiplier = this.baseStats.damageMultiplier;
+        
+        // Apply health percentage to new max health
+        this.health = this.maxHealth * healthPercentage;
     }
 }

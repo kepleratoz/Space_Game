@@ -1,11 +1,24 @@
 window.addEventListener('mousemove', (e) => {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
+    // Get mouse position relative to canvas
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+    
+    // Handle inventory mouse movement if in inventory state
+    if ((gameState === GAME_STATES.INVENTORY || gameState === GAME_STATES.INVENTORY_OVERLAY) && player) {
+        handleInventoryMouseMove(mouse.x, mouse.y, player);
+    }
 });
+
 window.addEventListener('mousedown', (e) => {
     switch(e.button) {
         case 0: // Left click
             mouse.isDown = true;
+            
+            // Handle inventory mouse down if in inventory state
+            if ((gameState === GAME_STATES.INVENTORY || gameState === GAME_STATES.INVENTORY_OVERLAY) && player) {
+                handleInventoryMouseDown(mouse.x, mouse.y, player);
+            }
             break;
         case 1: // Middle click
             mouse.middleDown = true;
@@ -43,10 +56,16 @@ window.addEventListener('mousedown', (e) => {
             break;
     }
 });
+
 window.addEventListener('mouseup', (e) => {
     switch(e.button) {
         case 0: // Left click
             mouse.isDown = false;
+            
+            // Handle inventory mouse up if in inventory state
+            if ((gameState === GAME_STATES.INVENTORY || gameState === GAME_STATES.INVENTORY_OVERLAY) && player) {
+                handleInventoryMouseUp(mouse.x, mouse.y, player);
+            }
             break;
         case 1: // Middle click
             mouse.middleDown = false;
@@ -95,7 +114,18 @@ window.addEventListener('keydown', (e) => {
     // Normal key handling
     keys[e.key] = true;
     
-    // Handle ability activation
+    // Prevent default behavior for arrow keys and space
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        e.preventDefault();
+    }
+    
+    // Toggle inventory with E key
+    if ((e.key === 'e' || e.key === 'E') && player && (gameState === GAME_STATES.PLAYING || gameState === GAME_STATES.INVENTORY || gameState === GAME_STATES.INVENTORY_OVERLAY)) {
+        toggleInventory();
+        return;
+    }
+    
+    // Handle player abilities
     if (gameState === GAME_STATES.PLAYING && player) {
         if (e.key === '1') {
             player.activateAbility(1);
@@ -197,6 +227,12 @@ canvas.addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
+    
+    // Handle inventory clicks if in inventory state
+    if (gameState === GAME_STATES.INVENTORY && player) {
+        handleInventoryClick(mouseX, mouseY, player);
+        return;
+    }
     
     // Handle clicks based on game state
     if (gameState === GAME_STATES.CLASS_SELECT) {
@@ -362,14 +398,9 @@ function handlePauseScreenClick(mouseX, mouseY) {
     }
 }
 
-// Make the functions globally available
-window.isClickOnSettingsButton = isClickOnSettingsButton;
-window.handlePauseScreenClick = handlePauseScreenClick;
-window.handleGameOverClick = handleGameOverClick;
-
-function handleGameOverClick(mouseX, mouseY) {
-    console.log("handleGameOverClick called", mouseX, mouseY);
-    console.log("respawnBtn:", window.respawnBtn);
+// Handle game over click
+const handleGameOverClick = (mouseX, mouseY) => {
+    console.log("Game over click at:", mouseX, mouseY);
     
     // Check if click is on respawn button
     if (window.respawnBtn && 
@@ -379,23 +410,6 @@ function handleGameOverClick(mouseX, mouseY) {
         mouseY <= window.respawnBtn.y + window.respawnBtn.height) {
         
         console.log("Respawn button clicked!");
-        
-        // Call the dedicated respawn function
         window.respawnToStation();
     }
-}
-
-// Add a dedicated function for respawn button handling
-function handleRespawnButtonClick() {
-    console.log("Respawn button clicked");
-    window.respawnToStation();
-}
-
-// Make the new function globally available
-window.handleRespawnButtonClick = handleRespawnButtonClick;
-
-// Add a global respawn function for debugging
-window.respawnPlayer = function() {
-    console.log("Manual respawn triggered");
-    window.respawnToStation();
 };

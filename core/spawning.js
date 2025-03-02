@@ -473,6 +473,38 @@ function spawnObjects() {
         enemies = [];
         return;
     }
+    // Handle Debris Field wave system
+    else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD && window.enemiesRemainingInWave <= 0 && enemies.length === 0) {
+        if (window.waveTimer > 0) {
+            window.waveTimer--;
+            
+            // Display wave and zone information
+            ctx.fillStyle = '#fff';
+            ctx.font = '30px Arial';
+            ctx.fillText(`Wave ${window.waveNumber} Complete!`, canvas.width/2 - 150, canvas.height/2 - 30);
+            ctx.fillText(`Next Wave in ${Math.ceil(window.waveTimer/60)}...`, canvas.width/2 - 120, canvas.height/2 + 30);
+            
+            return;
+        }
+
+        // Start new wave
+        window.waveNumber++;
+        window.enemiesRemainingInWave = 5 + (window.waveNumber - 1) * 2;
+        window.waveTimer = 300; // 5 seconds between waves
+        window.waveStartTime = Date.now();
+        
+        // Spawn initial wave enemies
+        const baseEnemies = Math.min(2 + Math.floor(window.waveNumber/2), 5);
+        for (let i = 0; i < baseEnemies; i++) {
+            spawnEnemy();
+        }
+        
+        // Spawn some asteroids with each wave
+        const asteroidsToSpawn = Math.min(2 + Math.floor(window.waveNumber/2), 6);
+        while (asteroids.length < asteroidsToSpawn) {
+            asteroids.push(new Asteroid());
+        }
+    }
 
     // During wave spawning
     if (Math.random() < 0.03 && window.enemiesRemainingInWave > 0) {

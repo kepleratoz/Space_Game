@@ -9,6 +9,13 @@ let animationTime = 0;
 // Add a global flag for respawn requests
 window.respawnRequested = false;
 
+// Initialize game variables
+// player is already declared in core/state.js
+// camera is already declared in core/Camera.js
+// enemies, asteroids, healthPacks, gems, and enemyProjectiles are also declared in core/state.js
+let items = []; // Array for inventory items
+// damageNumbers is already declared in utils/physics.js
+
 function updateFPS() {
     frameCount++;
     const now = performance.now();
@@ -66,9 +73,21 @@ function gameLoop() {
                 camera.y = player.y - canvas.height / 2;
             }
             
-            // Clear enemies and projectiles
+            // Clear ALL combat-related elements
             enemies = [];
             enemyProjectiles = [];
+            asteroids = [];
+            window.explosions = [];
+            
+            // Clear player lasers if they exist
+            if (player.lasers) {
+                player.lasers = [];
+            }
+            
+            // Reset any wave-related variables
+            window.waveNumber = 1;
+            window.enemiesRemainingInWave = 0;
+            window.waveTimer = 0;
             
             // Show notification
             if (typeof showNotification === 'function') {
@@ -146,6 +165,24 @@ function gameLoop() {
         return;
     }
     
+    if (gameState === GAME_STATES.INVENTORY) {
+        // Draw the game world in the background (but don't update it)
+        drawGameWorld();
+        
+        // Draw the inventory UI on top
+        if (player) {
+            drawInventory(ctx, player);
+        }
+        
+        lastFrameTime = currentTime;
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+    
+    if (gameState === GAME_STATES.INVENTORY_OVERLAY) {
+        // Continue with normal game updates - don't return early
+    }
+    
     // Update camera
     if (camera) {
         camera.update();
@@ -177,7 +214,7 @@ function gameLoop() {
     }
 
     // Update game objects only if not paused
-    if (gameState === GAME_STATES.PLAYING || window.currentZone === GAME_ZONES.STATION) {
+    if (gameState === GAME_STATES.PLAYING || window.currentZone === GAME_ZONES.STATION || gameState === GAME_STATES.INVENTORY_OVERLAY) {
         // Update player invincibility from debug mode
         if (isDebugMode && isInvincible) {
             player.invulnerable = true;
@@ -278,6 +315,11 @@ function gameLoop() {
                 spawnEnemy();
                 window.enemiesRemainingInWave--;
             }
+            // Add spawning for Debris Field
+            else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD && enemies.length < 10 && Math.random() < 0.02 && window.enemiesRemainingInWave > 0) {
+                spawnEnemy();
+                window.enemiesRemainingInWave--;
+            }
 
             // Update enemy projectiles
             if (enemyProjectiles) {
@@ -347,6 +389,15 @@ function gameLoop() {
                 }
             }
         } else {
+            // In station: ensure all enemies and combat elements are cleared
+            if (enemies.length > 0 || enemyProjectiles.length > 0 || asteroids.length > 0) {
+                console.log("Clearing combat elements in station");
+                enemies = [];
+                enemyProjectiles = [];
+                asteroids = [];
+                window.explosions = [];
+            }
+            
             // In station: handle laser collisions with walls
             if (player && player.lasers) {
                 player.lasers = player.lasers.filter(laser => {
@@ -367,6 +418,11 @@ function gameLoop() {
                 return isPointInsidePolygon({ x: laser.x, y: laser.y }, DEBRIS_FIELD.WALL_POINTS);
             });
         }
+
+        // Update items
+        if (items) {
+            items = items.filter(item => !item.update());
+        }
     }
     
     // Draw player
@@ -377,8 +433,8 @@ function gameLoop() {
     }
     
     // Draw all game objects
-    if (asteroids && enemies && healthPacks && gems) {
-        [...asteroids, ...enemies, ...healthPacks, ...gems].forEach(obj => {
+    if (asteroids && enemies && healthPacks && gems && items) {
+        [...asteroids, ...enemies, ...healthPacks, ...gems, ...items].forEach(obj => {
             if (obj) obj.draw();
         });
     }
@@ -463,6 +519,18 @@ function gameLoop() {
         handleDebrisFieldInteractions();
     }
 
+    // Draw inventory on top if in INVENTORY_OVERLAY state
+    if (gameState === GAME_STATES.INVENTORY_OVERLAY && player) {
+        drawInventory(ctx, player);
+    }
+    
+    // Draw items
+    if (items && items.length > 0) {
+        items.forEach(item => {
+            if (item) item.draw();
+        });
+    }
+    
     // Use setTimeout for more precise timing at high framerates
     setTimeout(() => requestAnimationFrame(gameLoop), 0);
 }
@@ -884,7 +952,7 @@ function drawStationElement(x, y, color, label, isNearby) {
     if (isNearby) {
         ctx.fillStyle = '#ffffff';
         ctx.font = '14px Arial';
-        ctx.fillText('Press E to interact', x, y + 90);
+        ctx.fillText('Press Q to interact', x, y + 90);
     }
     
     ctx.restore();
@@ -915,7 +983,7 @@ function drawExitPortal(x, y, isNearby) {
     if (isNearby) {
         ctx.fillStyle = '#ffffff';
         ctx.font = '14px Arial';
-        ctx.fillText('Press E to exit', x, y + 90);
+        ctx.fillText('Press Q to exit', x, y + 90);
     }
     
     ctx.restore();
@@ -989,11 +1057,11 @@ function handleStationInteractions() {
     const exitX = STATION.WIDTH - WALL_WIDTH - 100;
     const exitY = STATION.HEIGHT - WALL_WIDTH - 100;
     
-    // Check for E key press
-    if (keys['e'] || keys['E']) {
+    // Check for Q key press (changed from E)
+    if (keys['q'] || keys['Q']) {
         // Clear the key press to prevent multiple activations
-        keys['e'] = false;
-        keys['E'] = false;
+        keys['q'] = false;
+        keys['Q'] = false;
         
         // Check which station the player is near
         if (isPlayerNearPosition(STATION.HEAL_POSITION)) {
@@ -1039,6 +1107,12 @@ function handleStationInteractions() {
             // Exit to Debris Field instead of main game
             window.currentZone = GAME_ZONES.DEBRIS_FIELD;
             gameState = GAME_STATES.PLAYING;
+            
+            // Initialize wave system for Debris Field
+            window.waveNumber = 1;
+            window.enemiesRemainingInWave = 10;
+            window.waveStartTime = Date.now();
+            window.waveTimer = 0;
             
             // Position player at the entrance of the Debris Field
             player.x = 200;
@@ -1362,7 +1436,7 @@ function drawReturnPortal(x, y, isNearby) {
     if (isNearby) {
         ctx.fillStyle = '#ffffff';
         ctx.font = '14px Arial';
-        ctx.fillText('Press E to return', x, y + 90);
+        ctx.fillText('Press Q to return', x, y + 90);
     }
     
     ctx.restore();
@@ -1496,10 +1570,11 @@ function handleDebrisFieldInteractions() {
     const returnX = 100;
     const returnY = 100;
     
-    // Check for 'E' key press near the return portal
-    if (keys['KeyE'] && isPlayerNearReturnPortal(returnX, returnY)) {
+    // Check for 'Q' key press near the return portal
+    if ((keys['q'] || keys['Q']) && isPlayerNearReturnPortal(returnX, returnY)) {
         // Clear the key to prevent multiple triggers
-        keys['KeyE'] = false;
+        keys['q'] = false;
+        keys['Q'] = false;
         
         // Return to station
         window.currentZone = GAME_ZONES.STATION;
@@ -1515,6 +1590,89 @@ function handleDebrisFieldInteractions() {
         
         showNotification('Returned to Station');
     }
+}
+
+// Draw the game world without updating it (for inventory and pause screens)
+function drawGameWorld() {
+    // Draw the appropriate zone background
+    if (window.currentZone === GAME_ZONES.STATION) {
+        drawStationBackground();
+    } else if (window.currentZone === GAME_ZONES.TESTING) {
+        drawTestingZoneBackground();
+    } else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+        drawDebrisFieldBackground();
+    } else {
+        // Default background for main zone
+        ctx.fillStyle = '#000022';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Draw all game entities
+    // Draw player
+    if (player) {
+        if (typeof player.draw === 'function') {
+            player.draw();
+        }
+    }
+    
+    // Draw all game objects
+    if (asteroids && enemies && healthPacks && gems && items) {
+        [...asteroids, ...enemies, ...healthPacks, ...gems, ...items].forEach(obj => {
+            if (obj) obj.draw();
+        });
+    }
+    
+    // Draw enemy projectiles
+    if (enemyProjectiles && enemyProjectiles.length > 0) {
+        enemyProjectiles.forEach(projectile => {
+            const screenX = projectile.x - camera.x;
+            const screenY = projectile.y - camera.y;
+            
+            // Skip if off screen
+            if (screenX < -50 || screenX > canvas.width + 50 || 
+                screenY < -50 || screenY > canvas.height + 50) {
+                return;
+            }
+            
+            ctx.save();
+            ctx.translate(screenX, screenY);
+            ctx.rotate(projectile.angle);
+            
+            // Draw projectile based on color (Sentry lasers are purple)
+            if (projectile.color === '#8800ff') {
+                // Sentry laser - simple purple square
+                ctx.fillStyle = projectile.color;
+                const size = Math.max(projectile.width, projectile.height);
+                ctx.fillRect(-size/2, -size/2, size, size);
+            } else {
+                // Regular enemy projectile (shooter lasers)
+                ctx.fillStyle = projectile.color || '#ff00ff'; // Default to magenta if no color specified
+                ctx.fillRect(-projectile.width/2, -projectile.height/2, projectile.width, projectile.height);
+            }
+            
+            ctx.restore();
+        });
+    }
+    
+    // Draw player lasers
+    if (player && typeof player.drawLasers === 'function') {
+        player.drawLasers();
+    }
+    
+    // Update and draw damage numbers
+    if (damageNumbers) {
+        damageNumbers.forEach(number => {
+            if (number) number.draw();
+        });
+    }
+    
+    // Draw station UI elements if in station zone
+    if (window.currentZone === GAME_ZONES.STATION) {
+        drawStationUI();
+    }
+    
+    // Draw UI elements
+    drawGameUI();
 }
 
 // Start the game
