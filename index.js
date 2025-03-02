@@ -156,22 +156,67 @@ function gameLoop() {
             
             // Add collision detection with zone boundaries
             if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
-                // Simple approach: check if player is inside the boundary
+                // Check if player is inside the boundary
                 const playerPoint = { x: player.x, y: player.y };
                 
                 if (!isPointInsidePolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS)) {
-                    // Find the previous valid position (before collision)
-                    // This is a simple approach that works reliably
-                    const prevX = player.x - player.speedX;
-                    const prevY = player.y - player.speedY;
+                    // Player is outside the boundary - find the closest point on the boundary
+                    const closestPoint = findClosestPointOnPolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS);
                     
-                    // Move player back to previous position
-                    player.x = prevX;
-                    player.y = prevY;
+                    // Calculate direction vector from closest point to player
+                    const dirX = playerPoint.x - closestPoint.x;
+                    const dirY = playerPoint.y - closestPoint.y;
                     
-                    // Stop player movement in this direction
-                    player.speedX = 0;
-                    player.speedY = 0;
+                    // Calculate distance
+                    const distance = Math.sqrt(dirX * dirX + dirY * dirY);
+                    
+                    if (distance > 0) {
+                        // Normalize direction vector
+                        const normalizedDirX = dirX / distance;
+                        const normalizedDirY = dirY / distance;
+                        
+                        // Move player inside the boundary with a small buffer
+                        const buffer = 5;
+                        player.x = closestPoint.x + normalizedDirX * buffer;
+                        player.y = closestPoint.y + normalizedDirY * buffer;
+                    } else {
+                        // Fallback if distance is zero (shouldn't happen)
+                        player.x = closestPoint.x;
+                        player.y = closestPoint.y;
+                    }
+                    
+                    // Stop player movement
+                    player.velocityX = 0;
+                    player.velocityY = 0;
+                } else {
+                    // Player is inside the boundary, but check if they're too close to the wall
+                    const closestPoint = findClosestPointOnPolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS);
+                    
+                    // Calculate distance to the closest point on the boundary
+                    const dirX = playerPoint.x - closestPoint.x;
+                    const dirY = playerPoint.y - closestPoint.y;
+                    const distance = Math.sqrt(dirX * dirX + dirY * dirY);
+                    
+                    // If player is too close to the wall, push them away slightly
+                    const minDistanceFromWall = 10;
+                    if (distance < minDistanceFromWall) {
+                        // Calculate normalized direction vector
+                        const normalizedDirX = dirX / distance;
+                        const normalizedDirY = dirY / distance;
+                        
+                        // Push player away from wall
+                        player.x = closestPoint.x + normalizedDirX * minDistanceFromWall;
+                        player.y = closestPoint.y + normalizedDirY * minDistanceFromWall;
+                        
+                        // Reduce player velocity in the direction of the wall
+                        const dotProduct = 
+                            (player.velocityX * normalizedDirX + player.velocityY * normalizedDirY);
+                        
+                        if (dotProduct < 0) {
+                            player.velocityX -= dotProduct * normalizedDirX;
+                            player.velocityY -= dotProduct * normalizedDirY;
+                        }
+                    }
                 }
             }
         }
@@ -205,11 +250,37 @@ function gameLoop() {
                     });
                 }
 
-                // Remove projectiles that are off screen
-                enemyProjectiles = enemyProjectiles.filter(projectile => 
-                    projectile.x >= 0 && projectile.x <= WORLD_WIDTH &&
-                    projectile.y >= 0 && projectile.y <= WORLD_HEIGHT
-                );
+                // Remove projectiles that are off screen or hit walls
+                enemyProjectiles = enemyProjectiles.filter(projectile => {
+                    // Check if projectile is off screen
+                    const isOnScreen = 
+                        projectile.x >= 0 && projectile.x <= WORLD_WIDTH &&
+                        projectile.y >= 0 && projectile.y <= WORLD_HEIGHT;
+                    
+                    if (!isOnScreen) return false;
+                    
+                    // Check for wall collisions based on current zone
+                    if (window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION) {
+                        // Get current zone dimensions
+                        const zoneWidth = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.WIDTH : STATION.WIDTH;
+                        const zoneHeight = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.HEIGHT : STATION.HEIGHT;
+                        
+                        // Check if projectile hit a wall
+                        const hitWall = (
+                            projectile.x - projectile.width/2 < WALL_WIDTH ||
+                            projectile.x + projectile.width/2 > zoneWidth - WALL_WIDTH ||
+                            projectile.y - projectile.height/2 < WALL_WIDTH ||
+                            projectile.y + projectile.height/2 > zoneHeight - WALL_WIDTH
+                        );
+                        
+                        return !hitWall;
+                    } else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+                        // For Debris Field, check if projectile is inside the boundary
+                        return window.isPointInsidePolygon({ x: projectile.x, y: projectile.y }, DEBRIS_FIELD.WALL_POINTS);
+                    }
+                    
+                    return true;
+                });
 
                 // Check for collisions with player
                 if (player) {
@@ -963,11 +1034,11 @@ if (!window.debrisParticles) {
         const colorType = Math.random();
         let particleColor;
         if (colorType < 0.4) {
-            particleColor = '#3a3a45'; // Grayish
+            particleColor = '#3A3D42'; // Updated color
         } else if (colorType < 0.7) {
-            particleColor = '#5e4a2e'; // Yellow-brown
+            particleColor = '#6B5B4A'; // Updated color
         } else {
-            particleColor = '#4a3a5e'; // Purple-ish
+            particleColor = '#5A7184'; // Updated color
         }
         
         // Choose a random direction for consistent movement
@@ -998,11 +1069,11 @@ if (!window.asteroidShapes) {
         const colorType = Math.random();
         let asteroidColor;
         if (colorType < 0.4) {
-            asteroidColor = '#4a4a55'; // Grayish
+            asteroidColor = '#3A3D42'; // Updated color
         } else if (colorType < 0.7) {
-            asteroidColor = '#6e5a3e'; // Yellow-brown
+            asteroidColor = '#6B5B4A'; // Updated color
         } else {
-            asteroidColor = '#5a4a6e'; // Purple-ish
+            asteroidColor = '#5A7184'; // Updated color
         }
         
         window.asteroidShapes.push({
@@ -1021,21 +1092,22 @@ if (!window.asteroidShapes) {
 
 // Draw the Debris Field background
 function drawDebrisFieldBackground() {
-    // Fill the entire visible area with dark blue background (slightly modified to be more grayish)
-    ctx.fillStyle = '#1a1a25'; // Modified from '#1a1a2e' to be more grayish
+    // Create the gradient pattern for both the walls and outside area
+    const debrisGradient = ctx.createLinearGradient(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
+    debrisGradient.addColorStop(0, '#3A3D42');    // Dark gray
+    debrisGradient.addColorStop(0.3, '#6B5B4A');  // Brown/tan
+    debrisGradient.addColorStop(0.6, '#5A7184');  // Slate blue
+    debrisGradient.addColorStop(1, '#3A3D42');    // Back to dark gray
+    
+    // Fill the entire visible area with the same gradient as the walls
+    ctx.fillStyle = debrisGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
     
-    // Draw the irregular boundary walls with a gradient pattern
-    const wallGradient = ctx.createLinearGradient(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
-    wallGradient.addColorStop(0, '#4a4a55');    // Grayish
-    wallGradient.addColorStop(0.3, '#6e5a3e');  // Yellow-brown
-    wallGradient.addColorStop(0.6, '#5a4a6e');  // Purple-ish
-    wallGradient.addColorStop(1, '#4a4a55');    // Back to grayish
-    
-    ctx.fillStyle = wallGradient;
+    // Draw the irregular boundary walls with the same gradient pattern
+    ctx.fillStyle = debrisGradient;
     ctx.beginPath();
     
     // Draw outer boundary
@@ -1068,10 +1140,10 @@ function drawDebrisFieldBackground() {
     ctx.closePath();
     ctx.clip();
     
-    // Fill the inner area with the background color (slightly modified to be more grayish)
-    ctx.fillStyle = '#1a1a25'; // Modified from '#1a1a2e' to be more grayish
+    // Fill the inner area with the background color
+    ctx.fillStyle = '#2A2C2F'; // Dark Charcoal for the playable area
     ctx.fillRect(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
-    
+
     // Add some subtle texture to the background
     ctx.globalAlpha = 0.1;
     for (let i = 0; i < 100; i++) {
@@ -1082,11 +1154,11 @@ function drawDebrisFieldBackground() {
         // Random color from our palette
         const colorType = Math.random();
         if (colorType < 0.4) {
-            ctx.fillStyle = '#4a4a55'; // Grayish
+            ctx.fillStyle = '#3A3D42'; // Dark gray
         } else if (colorType < 0.7) {
-            ctx.fillStyle = '#6e5a3e'; // Yellow-brown
+            ctx.fillStyle = '#6B5B4A'; // Brown/tan
         } else {
-            ctx.fillStyle = '#5a4a6e'; // Purple-ish
+            ctx.fillStyle = '#5A7184'; // Slate blue
         }
         
         ctx.beginPath();
@@ -1094,7 +1166,7 @@ function drawDebrisFieldBackground() {
         ctx.fill();
     }
     ctx.globalAlpha = 1.0;
-    
+
     // Update and draw debris particles
     window.debrisParticles.forEach(particle => {
         // Update position

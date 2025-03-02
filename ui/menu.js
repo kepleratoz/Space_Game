@@ -25,31 +25,58 @@ function drawPauseButton() {
 }
 
 function drawZoneInfo() {
-    // Draw zone name at the top
+    // Draw zone name at the top middle
     let zoneNameText = '';
+    let zoneColor = '#fff'; // Default white color
+    
     switch(window.currentZone) {
         case GAME_ZONES.MAIN:
             zoneNameText = 'Main Game';
             break;
         case GAME_ZONES.TESTING:
             zoneNameText = 'Testing Zone';
+            zoneColor = '#ff4444'; // Red for testing zone
             break;
         case GAME_ZONES.STATION:
             zoneNameText = 'Space Station';
+            zoneColor = '#4287f5'; // Blue for station
+            break;
+        case GAME_ZONES.DEBRIS_FIELD:
+            zoneNameText = 'Debris Field';
+            zoneColor = '#6e5a3e'; // Yellow-brown for debris field
             break;
     }
     
-    ctx.font = '24px Arial';
-    ctx.fillStyle = '#fff';
+    // Set font before measuring text
+    ctx.font = 'bold 24px Arial';
+    
+    // Create a semi-transparent background for better visibility
+    const textWidth = ctx.measureText(zoneNameText).width;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(canvas.width / 2 - textWidth / 2 - 10, 10, textWidth + 20, 30);
+    
+    // Draw text with a subtle glow effect
+    ctx.shadowColor = zoneColor;
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = zoneColor;
     ctx.textAlign = 'center';
-    ctx.fillText(zoneNameText, canvas.width / 2, 35);
+    ctx.fillText(zoneNameText, canvas.width / 2, 30);
+    ctx.shadowBlur = 0; // Reset shadow
     
     // If in testing zone, show enemies killed counter
     if (window.currentZone === GAME_ZONES.TESTING) {
+        // Set font before measuring text
+        ctx.font = 'bold 20px Arial';
         const killsText = `Enemies Killed: ${window.enemiesKilledInTestingZone}/20`;
-        ctx.font = '20px Arial';
+        
+        // Background for kills counter
+        const killsWidth = ctx.measureText(killsText).width;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(canvas.width / 2 - killsWidth / 2 - 10, 45, killsWidth + 20, 30);
+        
+        // Draw kills counter
         ctx.fillStyle = '#fff';
-        ctx.fillText(killsText, canvas.width / 2, 70);
+        ctx.fillText(killsText, canvas.width / 2, 65);
     }
 }
 

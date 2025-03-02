@@ -9,8 +9,8 @@ const GAME_STATES = {
 };
 
 // World Constants
-const WORLD_WIDTH = Math.max(3000, window.innerWidth * 2);
-const WORLD_HEIGHT = Math.max(3000, window.innerHeight * 2);
+const WORLD_WIDTH = Math.max(4500, window.innerWidth * 3);
+const WORLD_HEIGHT = Math.max(4500, window.innerHeight * 3);
 
 // Testing Zone Constants
 const TESTING_ZONE = {
@@ -32,8 +32,8 @@ const GAME_ZONES = {
 
 // Station Constants
 const STATION = {
-    WIDTH: 1200,
-    HEIGHT: 1000,
+    WIDTH: 1800,
+    HEIGHT: 1500,
     HEAL_POSITION: { x: 0, y: 0 }, // Will be set dynamically
     SHIP_POSITION: { x: 0, y: 0 }, // Will be set dynamically
     SHOP_POSITION: { x: 0, y: 0 }, // Will be set dynamically
@@ -42,30 +42,30 @@ const STATION = {
 
 // Debris Field Constants
 const DEBRIS_FIELD = {
-    WIDTH: 2000,
-    HEIGHT: 2000,
+    WIDTH: 3000,
+    HEIGHT: 3000,
     WALL_POINTS: [
-        // Irregular shape with twists and turns
+        // Irregular shape with twists and turns - scaled up by 1.5x
         { x: 0, y: 0 },
-        { x: 400, y: 100 },
-        { x: 800, y: 50 },
-        { x: 1200, y: 200 },
-        { x: 1600, y: 100 },
-        { x: 2000, y: 0 },
-        { x: 2000, y: 400 },
-        { x: 1900, y: 800 },
-        { x: 2000, y: 1200 },
-        { x: 1800, y: 1600 },
-        { x: 2000, y: 2000 },
-        { x: 1600, y: 2000 },
-        { x: 1200, y: 1900 },
-        { x: 800, y: 2000 },
-        { x: 400, y: 1800 },
-        { x: 0, y: 2000 },
-        { x: 0, y: 1600 },
-        { x: 100, y: 1200 },
-        { x: 0, y: 800 },
-        { x: 200, y: 400 },
+        { x: 600, y: 150 },
+        { x: 1200, y: 75 },
+        { x: 1800, y: 300 },
+        { x: 2400, y: 150 },
+        { x: 3000, y: 0 },
+        { x: 3000, y: 600 },
+        { x: 2850, y: 1200 },
+        { x: 3000, y: 1800 },
+        { x: 2700, y: 2400 },
+        { x: 3000, y: 3000 },
+        { x: 2400, y: 3000 },
+        { x: 1800, y: 2850 },
+        { x: 1200, y: 3000 },
+        { x: 600, y: 2700 },
+        { x: 0, y: 3000 },
+        { x: 0, y: 2400 },
+        { x: 150, y: 1800 },
+        { x: 0, y: 1200 },
+        { x: 300, y: 600 },
         { x: 0, y: 0 }
     ],
     WALL_WIDTH: 40,

@@ -9,44 +9,85 @@ const WALL_WIDTH = 40;
 
 // Add wall collision detection
 function handleWallCollisions(entity) {
-    // Only apply wall collisions in testing zone or station
-    if (window.currentZone !== GAME_ZONES.TESTING && window.currentZone !== GAME_ZONES.STATION) return;
-
-    const margin = 5; // Small margin to prevent sticking
-    
-    // Get current zone dimensions
-    const zoneWidth = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.WIDTH : STATION.WIDTH;
-    const zoneHeight = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.HEIGHT : STATION.HEIGHT;
-    
-    // Left wall
-    if (entity.x - entity.width/2 < WALL_WIDTH) {
-        entity.x = WALL_WIDTH + entity.width/2 + margin;
-        if (entity === player) {
+    // Handle different zones
+    if (window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION) {
+        const margin = 5; // Small margin to prevent sticking
+        
+        // Get current zone dimensions
+        const zoneWidth = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.WIDTH : STATION.WIDTH;
+        const zoneHeight = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.HEIGHT : STATION.HEIGHT;
+        
+        // Left wall
+        if (entity.x - entity.width/2 < WALL_WIDTH) {
+            entity.x = WALL_WIDTH + entity.width/2 + margin;
             entity.velocityX = Math.abs(entity.velocityX) * 0.5; // Bounce with reduced velocity
         }
-    }
-    // Right wall
-    if (entity.x + entity.width/2 > zoneWidth - WALL_WIDTH) {
-        entity.x = zoneWidth - WALL_WIDTH - entity.width/2 - margin;
-        if (entity === player) {
+        // Right wall
+        if (entity.x + entity.width/2 > zoneWidth - WALL_WIDTH) {
+            entity.x = zoneWidth - WALL_WIDTH - entity.width/2 - margin;
             entity.velocityX = -Math.abs(entity.velocityX) * 0.5;
         }
-    }
-    // Top wall
-    if (entity.y - entity.height/2 < WALL_WIDTH) {
-        entity.y = WALL_WIDTH + entity.height/2 + margin;
-        if (entity === player) {
+        // Top wall
+        if (entity.y - entity.height/2 < WALL_WIDTH) {
+            entity.y = WALL_WIDTH + entity.height/2 + margin;
             entity.velocityY = Math.abs(entity.velocityY) * 0.5;
         }
-    }
-    // Bottom wall
-    if (entity.y + entity.height/2 > zoneHeight - WALL_WIDTH) {
-        entity.y = zoneHeight - WALL_WIDTH - entity.height/2 - margin;
-        if (entity === player) {
+        // Bottom wall
+        if (entity.y + entity.height/2 > zoneHeight - WALL_WIDTH) {
+            entity.y = zoneHeight - WALL_WIDTH - entity.height/2 - margin;
             entity.velocityY = -Math.abs(entity.velocityY) * 0.5;
+        }
+    } 
+    else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+        // For Debris Field, check if entity is inside the boundary
+        const entityPoint = { x: entity.x, y: entity.y };
+        
+        if (!window.isPointInsidePolygon(entityPoint, DEBRIS_FIELD.WALL_POINTS)) {
+            // Entity is outside the boundary - find the closest point on the boundary
+            const closestPoint = window.findClosestPointOnPolygon(entityPoint, DEBRIS_FIELD.WALL_POINTS);
+            
+            // Calculate direction vector from closest point to entity
+            const dirX = entityPoint.x - closestPoint.x;
+            const dirY = entityPoint.y - closestPoint.y;
+            
+            // Calculate distance
+            const distance = Math.sqrt(dirX * dirX + dirY * dirY);
+            
+            // Initialize normalized direction variables
+            let normalizedDirX = 0;
+            let normalizedDirY = 0;
+            
+            if (distance > 0) {
+                // Normalize direction vector
+                normalizedDirX = dirX / distance;
+                normalizedDirY = dirY / distance;
+                
+                // Move entity inside the boundary with a small buffer
+                const buffer = 5;
+                entity.x = closestPoint.x + normalizedDirX * buffer;
+                entity.y = closestPoint.y + normalizedDirY * buffer;
+            } else {
+                // Fallback if distance is zero (shouldn't happen)
+                entity.x = closestPoint.x;
+                entity.y = closestPoint.y;
+            }
+            
+            // Reverse velocity (bounce off wall)
+            const dotProduct = (entity.velocityX * normalizedDirX + entity.velocityY * normalizedDirY);
+            if (dotProduct < 0) {
+                entity.velocityX -= 2 * dotProduct * normalizedDirX;
+                entity.velocityY -= 2 * dotProduct * normalizedDirY;
+                
+                // Reduce velocity (friction)
+                entity.velocityX *= 0.5;
+                entity.velocityY *= 0.5;
+            }
         }
     }
 }
+
+// Make handleWallCollisions available globally
+window.handleWallCollisions = handleWallCollisions;
 
 // Generate wall decorations
 function generateWallLines() {
@@ -308,6 +349,20 @@ function spawnObjects() {
                 }
             });
         }
+    } else if (window.currentZone === GAME_ZONES.DEBRIS_FIELD && player) {
+        // For Debris Field, check if player's lasers and enemy projectiles are inside the boundary
+        player.lasers = player.lasers.filter(laser => {
+            return window.isPointInsidePolygon({ x: laser.x, y: laser.y }, DEBRIS_FIELD.WALL_POINTS);
+        });
+        
+        // Handle enemy projectile collisions with Debris Field walls
+        enemies.forEach(enemy => {
+            if (enemy.projectiles) {
+                enemy.projectiles = enemy.projectiles.filter(projectile => {
+                    return window.isPointInsidePolygon({ x: projectile.x, y: projectile.y }, DEBRIS_FIELD.WALL_POINTS);
+                });
+            }
+        });
     }
 
     // Testing Zone spawn logic
@@ -426,7 +481,7 @@ function spawnObjects() {
     }
 
     // Health packs spawn more frequently in higher waves (main game only)
-    if (window.currentZone === GAME_ZONES.MAIN && healthPacks.length < 3 && Math.random() < 0.005 + (window.waveNumber * 0.001)) {
+    if (window.currentZone === GAME_ZONES.MAIN && healthPacks.length < 3 && Math.random() < (0.005 + (window.waveNumber * 0.001)) / 8) {
         healthPacks.push(new HealthPack());
     }
 
@@ -457,11 +512,48 @@ function spawnEnemy() {
     let x, y;
     const currentWidth = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.WIDTH : WORLD_WIDTH;
     const currentHeight = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.HEIGHT : WORLD_HEIGHT;
+    const wallWidth = window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION ? WALL_WIDTH : 0;
+    let validPosition = false;
+
+    // Maximum attempts to find a valid position
+    const maxAttempts = 50;
+    let attempts = 0;
 
     do {
+        attempts++;
+        validPosition = false;
+        
+        // Generate random position
         x = Math.random() * currentWidth;
         y = Math.random() * currentHeight;
-    } while (distance(x, y, player.x, player.y) < 400); // Minimum spawn distance from player
+        
+        // Check if position is away from player
+        const awayFromPlayer = distance(x, y, player.x, player.y) >= 400;
+        
+        // Check if position is inside boundaries based on current zone
+        let insideBoundaries = true;
+        
+        if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+            // For Debris Field, use polygon check
+            insideBoundaries = window.isPointInsidePolygon({ x, y }, DEBRIS_FIELD.WALL_POINTS);
+        } else if (window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION) {
+            // For Testing Zone and Station, check rectangular boundaries
+            insideBoundaries = (
+                x >= wallWidth + 20 && 
+                x <= currentWidth - wallWidth - 20 && 
+                y >= wallWidth + 20 && 
+                y <= currentHeight - wallWidth - 20
+            );
+        }
+        
+        validPosition = awayFromPlayer && insideBoundaries;
+        
+        // If we've tried too many times, just use the last position
+        if (attempts >= maxAttempts) {
+            console.log("Warning: Could not find valid enemy spawn position after " + maxAttempts + " attempts");
+            break;
+        }
+    } while (!validPosition);
 
     // Testing Zone only spawns Chasers and Shooters
     if (window.currentZone === GAME_ZONES.TESTING) {
@@ -542,11 +634,48 @@ function spawnSentry() {
     let x, y;
     const currentWidth = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.WIDTH : WORLD_WIDTH;
     const currentHeight = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.HEIGHT : WORLD_HEIGHT;
+    const wallWidth = window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION ? WALL_WIDTH : 0;
+    let validPosition = false;
+
+    // Maximum attempts to find a valid position
+    const maxAttempts = 50;
+    let attempts = 0;
 
     do {
-        x = Math.random() * (currentWidth - WALL_WIDTH * 4) + WALL_WIDTH * 2;
-        y = Math.random() * (currentHeight - WALL_WIDTH * 4) + WALL_WIDTH * 2;
-    } while (distance(x, y, player.x, player.y) < 500); // Further minimum spawn distance for Sentry
+        attempts++;
+        validPosition = false;
+        
+        // Generate random position
+        x = Math.random() * currentWidth;
+        y = Math.random() * currentHeight;
+        
+        // Check if position is away from player
+        const awayFromPlayer = distance(x, y, player.x, player.y) >= 500;
+        
+        // Check if position is inside boundaries based on current zone
+        let insideBoundaries = true;
+        
+        if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+            // For Debris Field, use polygon check
+            insideBoundaries = window.isPointInsidePolygon({ x, y }, DEBRIS_FIELD.WALL_POINTS);
+        } else if (window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION) {
+            // For Testing Zone and Station, check rectangular boundaries
+            insideBoundaries = (
+                x >= wallWidth + 20 && 
+                x <= currentWidth - wallWidth - 20 && 
+                y >= wallWidth + 20 && 
+                y <= currentHeight - wallWidth - 20
+            );
+        }
+        
+        validPosition = awayFromPlayer && insideBoundaries;
+        
+        // If we've tried too many times, just use the last position
+        if (attempts >= maxAttempts) {
+            console.log("Warning: Could not find valid sentry spawn position after " + maxAttempts + " attempts");
+            break;
+        }
+    } while (!validPosition);
 
     // Create the Sentry enemy
     enemies.push(new SentryEnemy(x, y));
@@ -558,5 +687,4 @@ function spawnSentry() {
 // Make functions globally available
 window.generateTestingZoneLines = generateTestingZoneLines;
 window.drawTestingZoneBackground = drawTestingZoneBackground;
-window.handleWallCollisions = handleWallCollisions;
 window.trackEnemyKill = trackEnemyKill;

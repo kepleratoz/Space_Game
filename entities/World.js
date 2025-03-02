@@ -3,8 +3,14 @@ class Asteroid {
     constructor() {
         this.width = 50;
         this.height = 50;
-        this.x = Math.random() * WORLD_WIDTH;
-        this.y = Math.random() * WORLD_HEIGHT;
+        
+        // Initialize position
+        this.x = 0;
+        this.y = 0;
+        
+        // Set position based on current zone
+        this.setValidPosition();
+        
         // Increase initial velocity for more momentum
         const angle = Math.random() * Math.PI * 2;
         const speed = 1 + Math.random() * 2;
@@ -18,6 +24,49 @@ class Asteroid {
         this.invulnerableTime = 0;
         this.ramInvulnerabilityDuration = 20; // Same as enemies
         this.lastRamTime = 0;
+    }
+    
+    // Find a valid position inside the current zone boundaries
+    setValidPosition() {
+        const currentWidth = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.WIDTH : WORLD_WIDTH;
+        const currentHeight = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.HEIGHT : WORLD_HEIGHT;
+        const wallWidth = window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION ? WALL_WIDTH : 0;
+        
+        // Maximum attempts to find a valid position
+        const maxAttempts = 50;
+        let attempts = 0;
+        let validPosition = false;
+        
+        do {
+            attempts++;
+            
+            // Generate random position
+            this.x = Math.random() * currentWidth;
+            this.y = Math.random() * currentHeight;
+            
+            // Check if position is inside boundaries based on current zone
+            if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+                // For Debris Field, use polygon check
+                validPosition = window.isPointInsidePolygon({ x: this.x, y: this.y }, DEBRIS_FIELD.WALL_POINTS);
+            } else if (window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION) {
+                // For Testing Zone and Station, check rectangular boundaries
+                validPosition = (
+                    this.x >= wallWidth + this.width/2 && 
+                    this.x <= currentWidth - wallWidth - this.width/2 && 
+                    this.y >= wallWidth + this.height/2 && 
+                    this.y <= currentHeight - wallWidth - this.height/2
+                );
+            } else {
+                // For main game, any position is valid
+                validPosition = true;
+            }
+            
+            // If we've tried too many times, just use the last position
+            if (attempts >= maxAttempts) {
+                console.log("Warning: Could not find valid asteroid position after " + maxAttempts + " attempts");
+                break;
+            }
+        } while (!validPosition);
     }
 
     draw() {
@@ -133,10 +182,59 @@ class HealthPack {
     constructor() {
         this.width = 20;
         this.height = 20;
-        this.x = Math.random() * WORLD_WIDTH;
-        this.y = Math.random() * WORLD_HEIGHT;
+        
+        // Initialize position
+        this.x = 0;
+        this.y = 0;
+        
+        // Set position based on current zone
+        this.setValidPosition();
+        
         this.healAmount = 30;
         this.collected = false;
+    }
+    
+    // Find a valid position inside the current zone boundaries
+    setValidPosition() {
+        const currentWidth = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.WIDTH : WORLD_WIDTH;
+        const currentHeight = window.currentZone === GAME_ZONES.TESTING ? TESTING_ZONE.HEIGHT : WORLD_HEIGHT;
+        const wallWidth = window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION ? WALL_WIDTH : 0;
+        
+        // Maximum attempts to find a valid position
+        const maxAttempts = 50;
+        let attempts = 0;
+        let validPosition = false;
+        
+        do {
+            attempts++;
+            
+            // Generate random position
+            this.x = Math.random() * currentWidth;
+            this.y = Math.random() * currentHeight;
+            
+            // Check if position is inside boundaries based on current zone
+            if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+                // For Debris Field, use polygon check
+                validPosition = window.isPointInsidePolygon({ x: this.x, y: this.y }, DEBRIS_FIELD.WALL_POINTS);
+            } else if (window.currentZone === GAME_ZONES.TESTING || window.currentZone === GAME_ZONES.STATION) {
+                // For Testing Zone and Station, check rectangular boundaries
+                validPosition = (
+                    this.x >= wallWidth + this.width/2 && 
+                    this.x <= currentWidth - wallWidth - this.width/2 && 
+                    this.y >= wallWidth + this.height/2 && 
+                    this.y <= currentHeight - wallWidth - this.height/2
+                );
+            } else {
+                // For main game, any position is valid
+                validPosition = true;
+            }
+            
+            // If we've tried too many times, just use the last position
+            if (attempts >= maxAttempts) {
+                console.log("Warning: Could not find valid health pack position after " + maxAttempts + " attempts");
+                break;
+            }
+        } while (!validPosition);
     }
 
     draw() {

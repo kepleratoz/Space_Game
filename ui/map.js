@@ -13,6 +13,40 @@ function drawMinimap() {
     ctx.lineWidth = 1;
     ctx.strokeRect(mapX, mapY, mapSize, mapSize);
 
+    // Check if player is in Debris Field
+    if (window.currentZone === GAME_ZONES.DEBRIS_FIELD) {
+        // Display radar malfunction message
+        ctx.fillStyle = '#ff3333'; // Red text for warning
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add a flashing effect
+        const flashRate = 0.5; // Flash rate in seconds
+        const alpha = 0.5 + 0.5 * Math.sin(Date.now() / 1000 * Math.PI * flashRate);
+        ctx.globalAlpha = alpha;
+        
+        // Draw the warning text
+        ctx.fillText('RADAR', mapX + mapSize / 2, mapY + mapSize / 2 - 10);
+        ctx.fillText('MALFUNCTION', mapX + mapSize / 2, mapY + mapSize / 2);
+        ctx.fillText('DETECTED', mapX + mapSize / 2, mapY + mapSize / 2 + 10);
+        
+        // Add some static noise effect to the map
+        ctx.globalAlpha = 0.2;
+        for (let i = 0; i < 100; i++) {
+            const noiseX = mapX + Math.random() * mapSize;
+            const noiseY = mapY + Math.random() * mapSize;
+            const noiseSize = 1 + Math.random() * 2;
+            
+            ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#888888';
+            ctx.fillRect(noiseX, noiseY, noiseSize, noiseSize);
+        }
+        
+        // Reset alpha
+        ctx.globalAlpha = 1.0;
+        return;
+    }
+
     // Draw player if it exists
     if (player) {
         ctx.fillStyle = '#00ff00';

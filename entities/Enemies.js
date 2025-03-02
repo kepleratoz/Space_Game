@@ -91,6 +91,15 @@ class Enemy {
                 }
             }
             
+            // Apply wall collisions for all zones
+            if (typeof window.handleWallCollisions === 'function') {
+                window.handleWallCollisions(this);
+            }
+            
+            // Update position AFTER wall collision check
+            this.x += this.velocityX;
+            this.y += this.velocityY;
+            
             // World boundaries
             this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
             this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
@@ -158,8 +167,7 @@ class ChaserEnemy extends Enemy {
         this.velocityX = Math.cos(angle) * this.speed;
         this.velocityY = Math.sin(angle) * this.speed;
         
-        this.x += this.velocityX;
-        this.y += this.velocityY;
+        // Position is updated in the update method after wall collision checks
     }
 }
 
@@ -290,42 +298,32 @@ class DasherEnemy extends Enemy {
     behavior() {
         if (window.isFrozen) return;
 
-        // Rotate slowly towards player
-        const targetRotation = Math.atan2(player.y - this.y, player.x - this.x);
-        const rotationDiff = targetRotation - this.rotation;
+        // Calculate distance to player
+        const distToPlayer = distance(this.x, this.y, player.x, player.y);
         
-        // Normalize rotation difference
-        let normalizedDiff = rotationDiff;
-        while (normalizedDiff > Math.PI) normalizedDiff -= Math.PI * 2;
-        while (normalizedDiff < -Math.PI) normalizedDiff += Math.PI * 2;
+        // If in dash cooldown, slow down
+        if (this.dashCooldown > 0) {
+            this.velocityX *= 0.95;
+            this.velocityY *= 0.95;
+        }
         
-        this.rotation += Math.sign(normalizedDiff) * this.rotationSpeed;
-
-        if (this.isDashing) {
-            // Continue dash
-            this.dashDuration++;
-            if (this.dashDuration >= this.maxDashDuration) {
-                this.isDashing = false;
-                this.dashCooldown = this.maxDashCooldown;
-            }
-            this.velocityX = Math.cos(this.rotation) * this.dashSpeed;
-            this.velocityY = Math.sin(this.rotation) * this.dashSpeed;
-        } else {
-            // Normal movement
-            this.velocityX = Math.cos(this.rotation) * this.normalSpeed;
-            this.velocityY = Math.sin(this.rotation) * this.normalSpeed;
+        // If player is in range and not in cooldown, dash towards player
+        if (distToPlayer < this.dashRange && this.dashCooldown <= 0) {
+            // Calculate angle to player
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            this.rotation = angle;
             
-            // Check if we should start a dash
-            if (this.dashCooldown <= 0 && Math.abs(normalizedDiff) < 0.1) {
-                this.isDashing = true;
-                this.dashDuration = 0;
-            } else {
-                this.dashCooldown--;
-            }
+            // Dash towards player
+            this.velocityX = Math.cos(angle) * this.dashSpeed;
+            this.velocityY = Math.sin(angle) * this.dashSpeed;
+            
+            // Set dash cooldown
+            this.dashCooldown = this.dashCooldownMax;
+        } else {
+            this.dashCooldown--;
         }
 
-        this.x += this.velocityX;
-        this.y += this.velocityY;
+        // Position is updated in the update method after wall collision checks
     }
 }
 
@@ -384,8 +382,7 @@ class BomberEnemy extends Enemy {
         this.velocityX = Math.cos(angle) * this.speed;
         this.velocityY = Math.sin(angle) * this.speed;
         
-        this.x += this.velocityX;
-        this.y += this.velocityY;
+        // Position is updated in the update method after wall collision checks
 
         // Shoot orbs
         if (this.shootCooldown <= 0) {
@@ -393,26 +390,6 @@ class BomberEnemy extends Enemy {
             this.shootCooldown = this.maxShootCooldown;
         } else {
             this.shootCooldown--;
-        }
-
-        // Update orbs
-        if (!window.isFrozen) {
-            for (let i = this.orbs.length - 1; i >= 0; i--) {
-                const orb = this.orbs[i];
-                orb.x += orb.velocityX;
-                orb.y += orb.velocityY;
-                orb.distanceTraveled += Math.sqrt(orb.velocityX * orb.velocityX + orb.velocityY * orb.velocityY);
-
-                // Check collision with player
-                if (distance(orb.x, orb.y, player.x, player.y) < (player.width + this.orbSize) / 2) {
-                    player.takeDamage(this.orbDamage);
-                }
-
-                // Remove orb if it's gone too far
-                if (orb.distanceTraveled > this.orbRange) {
-                    this.orbs.splice(i, 1);
-                }
-            }
         }
     }
 
