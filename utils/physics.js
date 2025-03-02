@@ -234,7 +234,14 @@ function handleCollisions() {
         const dist = distance(player.x, player.y, object.x, object.y);
         
         if (dist < playerRadius + objectRadius) {
-            // Collision response
+            // Special handling for RogueDrone - they handle their own collision in behavior()
+            if (object instanceof RogueDrone) {
+                // The drone will handle its own collision in its behavior method
+                // This prevents double-processing the collision
+                return;
+            }
+            
+            // Collision response for other objects
             const angle = Math.atan2(player.y - object.y, player.x - object.x);
             const overlap = (playerRadius + objectRadius) - dist;
             

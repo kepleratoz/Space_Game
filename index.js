@@ -6,6 +6,9 @@ let lastFpsUpdate = performance.now();
 let currentFps = 0;
 let animationTime = 0;
 
+// Add a global flag for respawn requests
+window.respawnRequested = false;
+
 function updateFPS() {
     frameCount++;
     const now = performance.now();
@@ -37,6 +40,42 @@ function gameLoop() {
     // Calculate time since last frame
     const currentTime = performance.now();
     const deltaTime = currentTime - lastFrameTime;
+    
+    // Check for respawn requests
+    if (window.respawnRequested) {
+        console.log("Respawn request detected in game loop");
+        window.respawnRequested = false; // Reset the flag
+        
+        // Reset game state
+        gameOver = false;
+        gameState = GAME_STATES.STATION;
+        
+        // Make sure player exists
+        if (player) {
+            // Heal player
+            player.health = player.maxHealth;
+            
+            // Reset position
+            window.currentZone = GAME_ZONES.STATION;
+            player.x = STATION.WIDTH / 2;
+            player.y = STATION.HEIGHT / 2;
+            
+            // Reset camera
+            if (camera) {
+                camera.x = player.x - canvas.width / 2;
+                camera.y = player.y - canvas.height / 2;
+            }
+            
+            // Clear enemies and projectiles
+            enemies = [];
+            enemyProjectiles = [];
+            
+            // Show notification
+            if (typeof showNotification === 'function') {
+                showNotification('Returned to Station');
+            }
+        }
+    }
     
     // Initialize player if not already initialized
     if (!player && gameState === GAME_STATES.PLAYING) {
@@ -1005,10 +1044,14 @@ function handleStationInteractions() {
             player.x = 200;
             player.y = 200;
             
-            // Spawn a single Automated Sentry in the Debris Field
-            enemies = [new AutomatedSentry(1000, 1000)];
+            // Spawn enemies in the Debris Field
+            enemies = [
+                new AutomatedSentry(1000, 1000),
+                new RogueDrone(800, 600),
+                new RogueFighter(1200, 800)
+            ];
             
-            showNotification('Entering Debris Field - Watch out for Automated Sentries!');
+            showNotification('Entering Debris Field - Watch out for Automated Sentries and Rogue Drones!');
         }
     }
 }
@@ -1060,6 +1103,33 @@ if (!window.debrisParticles) {
         });
     }
 }
+
+// Initialize explosions array if it doesn't exist
+if (!window.explosions) {
+    window.explosions = [];
+}
+
+// Function to create an explosion effect at a specific position
+window.createExplosion = function(x, y, color = '#FF6600', particleCount = 20) {
+    // Create particles that expand outward from the explosion point
+    for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 3;
+        const size = 3 + Math.random() * 5;
+        const lifetime = 30 + Math.random() * 20; // Frames the particle will live
+        
+        window.explosions.push({
+            x: x,
+            y: y,
+            speedX: Math.cos(angle) * speed,
+            speedY: Math.sin(angle) * speed,
+            size: size,
+            color: color,
+            lifetime: lifetime,
+            age: 0
+        });
+    }
+};
 
 // Initialize asteroid shapes with persistent positions if they don't exist
 if (!window.asteroidShapes) {
@@ -1189,6 +1259,35 @@ function drawDebrisFieldBackground() {
         );
     });
     
+    // Update and draw explosion particles
+    for (let i = window.explosions.length - 1; i >= 0; i--) {
+        const particle = window.explosions[i];
+        
+        // Update position
+        particle.x += particle.speedX;
+        particle.y += particle.speedY;
+        
+        // Age the particle
+        particle.age++;
+        
+        // Remove if it's too old
+        if (particle.age >= particle.lifetime) {
+            window.explosions.splice(i, 1);
+            continue;
+        }
+        
+        // Calculate fade based on age
+        const fade = 1 - (particle.age / particle.lifetime);
+        
+        // Draw particle
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size * fade, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+
     // Update and draw asteroid shapes
     window.asteroidShapes.forEach(asteroid => {
         // Update position

@@ -40,6 +40,10 @@ class Player {
         this.lastHitTime = 0;
         this.mouseControls = true;
         this.damageMultiplier = 1;
+        
+        // Add respawn effect properties
+        this.respawnFlashEffect = 0;
+        this.respawnFlashDuration = 60;
 
         // Add drift properties for Speedster and Assault Fighter
         if (shipClass.name === 'Speedster' || shipClass.name === 'Assault Fighter') {
@@ -188,12 +192,47 @@ class Player {
     }
 
     draw() {
+        // Skip drawing if player is not initialized
+        if (!this.shipClass) return;
+        
+        // Calculate screen position
         const screenX = this.x - camera.x;
         const screenY = this.y - camera.y;
-
+        
+        // Skip drawing if off screen
+        if (screenX < -100 || screenX > canvas.width + 100 || 
+            screenY < -100 || screenY > canvas.height + 100) {
+            return;
+        }
+        
         ctx.save();
         ctx.translate(screenX, screenY);
         ctx.rotate(this.rotation);
+        
+        // Draw respawn flash effect if active
+        if (this.respawnFlashEffect > 0) {
+            const flashIntensity = this.respawnFlashEffect / this.respawnFlashDuration;
+            const flashRadius = 50 * (1 - flashIntensity);
+            
+            // Draw expanding circle
+            ctx.globalAlpha = flashIntensity;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(0, 0, flashRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Decrease flash effect counter
+            this.respawnFlashEffect--;
+            
+            // Reset alpha for ship drawing
+            ctx.globalAlpha = 1;
+        }
+        
+        // Draw invulnerability effect
+        if (this.invulnerable) {
+            const invulnerabilityAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 50);
+            ctx.globalAlpha = invulnerabilityAlpha;
+        }
         
         ctx.fillStyle = this.invulnerable ? this.color + '88' : this.color;
         
@@ -1654,8 +1693,53 @@ class Player {
         
         this.health -= amount;
         if (this.health <= 0) {
-            gameOver = true;
+            // Instead of setting gameOver flag, immediately respawn at station
+            console.log("Player died - respawning at station");
+            
+            // Reset health
+            this.health = this.maxHealth;
+            
+            // Reset position to station
+            window.currentZone = GAME_ZONES.STATION;
+            this.x = STATION.WIDTH / 2;
+            this.y = STATION.HEIGHT / 2;
+            
+            // Reset camera
+            if (camera) {
+                camera.x = this.x - canvas.width / 2;
+                camera.y = this.y - canvas.height / 2;
+            }
+            
+            // Clear ALL enemies and projectiles from the game
+            enemies = [];
+            enemyProjectiles = [];
+            asteroids = [];
+            
+            // Also clear any global enemy arrays that might exist
+            if (window.enemies) window.enemies = [];
+            if (window.enemyProjectiles) window.enemyProjectiles = [];
+            if (window.asteroids) window.asteroids = [];
+            
+            // Show notification
+            if (typeof showNotification === 'function') {
+                showNotification('Returned to Station');
+            }
+            
+            // Make player temporarily invulnerable for a longer period
+            this.invulnerable = true;
+            this.invulnerableTime = 60; // Longer invulnerability after respawn
+            
+            // Activate respawn flash effect
+            this.respawnFlashEffect = this.respawnFlashDuration;
+            
+            // Create explosion effect at respawn location
+            if (typeof window.createExplosion === 'function') {
+                window.createExplosion(this.x, this.y, '#ffffff', 30);
+            }
+            
+            return;
         }
+        
         // Temporary invulnerability
         this.invulnerable = true;
         this.invulnerableTime = isRam ? this.ramInvulnerabilityDuration : this.regularInvulnerabilityDuration;

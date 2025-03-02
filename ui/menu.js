@@ -226,6 +226,41 @@ function drawGameOver() {
     ctx.fillText(`Waves Cleared: ${window.waveNumber - 1}`, canvas.width/2, statsY + lineSpacing);
     ctx.fillText(`Time Played: ${minutes}:${seconds.toString().padStart(2, '0')}`, canvas.width/2, statsY + lineSpacing * 2);
     ctx.fillText(`XP Gained: ${xpGained}`, canvas.width/2, statsY + lineSpacing * 3);
+    
+    // Add respawn button
+    const respawnBtn = {
+        x: canvas.width/2 - 150,
+        y: canvas.height/2 + 100,
+        width: 300,
+        height: 50
+    };
+    
+    // Draw button with hover effect
+    ctx.fillStyle = mouse.x >= respawnBtn.x && 
+                   mouse.x <= respawnBtn.x + respawnBtn.width && 
+                   mouse.y >= respawnBtn.y && 
+                   mouse.y <= respawnBtn.y + respawnBtn.height 
+                   ? '#4287f5' : '#2c3e50';
+    ctx.fillRect(respawnBtn.x, respawnBtn.y, respawnBtn.width, respawnBtn.height);
+    
+    // Button border
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(respawnBtn.x, respawnBtn.y, respawnBtn.width, respawnBtn.height);
+    
+    // Button text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('RESPAWN', respawnBtn.x + respawnBtn.width/2, respawnBtn.y + 35);
+    
+    // Add keyboard shortcut hint
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('or press R key', respawnBtn.x + respawnBtn.width/2, respawnBtn.y + 70);
+    
+    // Store respawn button coordinates for click handling
+    window.respawnBtn = respawnBtn;
 }
 
 function drawSettingsButton() {

@@ -923,6 +923,250 @@ class AutomatedSentry extends Enemy {
     }
 }
 
+class RogueDrone extends Enemy {
+    constructor(x, y) {
+        super(x, y);
+        this.width = 25;
+        this.height = 25;
+        this.color = '#5F6642'; // Dull Olive color (was '#00ffaa')
+        this.speed = 12; // Extreme speed
+        this.health = 5;
+        this.maxHealth = 5;
+        this.damage = 35; // High damage on contact
+        this.type = 'Rogue Drone';
+        this.markedForRemoval = false; // Flag to mark for immediate removal
+        this.hasCollidedWithPlayer = false; // Track if this drone has already collided with player
+    }
+
+    drawShape(x, y) {
+        // Draw a diamond shape with military/industrial colors
+        ctx.beginPath();
+        ctx.moveTo(x, y - this.height/2); // Top
+        ctx.lineTo(x + this.width/2, y); // Right
+        ctx.lineTo(x, y + this.height/2); // Bottom
+        ctx.lineTo(x - this.width/2, y); // Left
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw a rusty brown inner diamond
+        ctx.fillStyle = '#8C5A3B'; // Rusty Brown
+        ctx.beginPath();
+        const innerSize = 0.7; // 70% of the original size
+        ctx.moveTo(x, y - this.height/2 * innerSize); // Top
+        ctx.lineTo(x + this.width/2 * innerSize, y); // Right
+        ctx.lineTo(x, y + this.height/2 * innerSize); // Bottom
+        ctx.lineTo(x - this.width/2 * innerSize, y); // Left
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw a gunmetal gray center
+        ctx.fillStyle = '#4B4F56'; // Gunmetal Gray
+        ctx.beginPath();
+        ctx.arc(x, y, this.width/5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    behavior() {
+        if (window.isFrozen || this.hasCollidedWithPlayer) return;
+
+        // Calculate angle to player
+        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        this.rotation = angle;
+        
+        // Move directly towards player at high speed
+        this.velocityX = Math.cos(angle) * this.speed;
+        this.velocityY = Math.sin(angle) * this.speed;
+        
+        // Check for collision with player
+        if (distance(this.x, this.y, player.x, player.y) < (this.width + player.width) / 2) {
+            // Mark that we've collided to prevent multiple damage applications
+            this.hasCollidedWithPlayer = true;
+            
+            // Deal damage to player
+            player.takeDamage(this.damage);
+            
+            // Die immediately
+            this.health = 0;
+            this.markedForRemoval = true; // Mark for immediate removal
+            
+            // Create explosion effect
+            if (typeof window.createExplosion === 'function') {
+                window.createExplosion(this.x, this.y, '#8C5A3B', 15);
+            }
+            
+            // Stop movement
+            this.velocityX = 0;
+            this.velocityY = 0;
+        }
+    }
+    
+    update() {
+        // If marked for removal, return true to remove immediately
+        if (this.markedForRemoval) {
+            return true;
+        }
+        
+        // Otherwise use the standard update method
+        return super.update();
+    }
+}
+
+class RogueFighter extends Enemy {
+    constructor(x, y) {
+        super(x, y);
+        this.width = 35;
+        this.height = 35;
+        this.color = '#ff6600'; // Orange color
+        this.health = 40;
+        this.maxHealth = 40;
+        this.speed = 4;
+        this.damage = 5; // Damage per bullet
+        this.type = 'Rogue Fighter';
+        
+        // AI state
+        this.state = 'retreat'; // States: retreat, aim, pause, shoot
+        this.targetDistance = 500; // Safe distance to maintain
+        this.pauseTimer = 0;
+        this.pauseDuration = 120; // 2 seconds at 60 FPS
+        this.bulletsFired = 0;
+        this.maxBullets = 3;
+        this.bulletCooldown = 0;
+        this.bulletCooldownDuration = 10; // Time between bullets
+        this.retreatTimer = 0;
+        this.retreatDuration = 180; // 3 seconds before next attack sequence
+        this.destroyed = false; // Track if we've already created the explosion
+    }
+
+    drawShape(x, y) {
+        // Draw a triangular fighter shape
+        ctx.beginPath();
+        ctx.moveTo(x + this.width/2, y); // Nose
+        ctx.lineTo(x - this.width/2, y + this.height/3); // Bottom right
+        ctx.lineTo(x - this.width/3, y); // Back center
+        ctx.lineTo(x - this.width/2, y - this.height/3); // Top right
+        ctx.closePath();
+        ctx.fill();
+        
+        // Draw engine glow based on state
+        ctx.fillStyle = this.state === 'retreat' ? '#ff9900' : '#666666';
+        ctx.beginPath();
+        ctx.arc(x - this.width/3, y, this.width/6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    behavior() {
+        if (window.isFrozen) return;
+
+        const distToPlayer = distance(this.x, this.y, player.x, player.y);
+        const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+        
+        // State machine for fighter behavior
+        switch (this.state) {
+            case 'retreat':
+                // Move away from player to safe distance
+                if (distToPlayer < this.targetDistance) {
+                    // Calculate angle away from player
+                    const retreatAngle = Math.atan2(this.y - player.y, this.x - player.x);
+                    this.rotation = retreatAngle;
+                    this.velocityX = Math.cos(retreatAngle) * this.speed;
+                    this.velocityY = Math.sin(retreatAngle) * this.speed;
+                } else {
+                    // At safe distance, transition to aim state
+                    this.velocityX *= 0.9;
+                    this.velocityY *= 0.9;
+                    this.state = 'aim';
+                }
+                break;
+                
+            case 'aim':
+                // Aim at player
+                this.rotation = angleToPlayer;
+                this.velocityX *= 0.9;
+                this.velocityY *= 0.9;
+                
+                // Transition to pause state
+                this.state = 'pause';
+                this.pauseTimer = this.pauseDuration;
+                break;
+                
+            case 'pause':
+                // Hold position and continue aiming
+                this.rotation = angleToPlayer;
+                this.velocityX *= 0.9;
+                this.velocityY *= 0.9;
+                
+                // Count down pause timer
+                this.pauseTimer--;
+                if (this.pauseTimer <= 0) {
+                    // Transition to shoot state
+                    this.state = 'shoot';
+                    this.bulletsFired = 0;
+                    this.bulletCooldown = 0;
+                }
+                break;
+                
+            case 'shoot':
+                // Continue aiming while shooting
+                this.rotation = angleToPlayer;
+                this.velocityX *= 0.9;
+                this.velocityY *= 0.9;
+                
+                // Fire bullets with cooldown
+                if (this.bulletCooldown <= 0) {
+                    if (this.bulletsFired < this.maxBullets) {
+                        this.shootBullet();
+                        this.bulletsFired++;
+                        this.bulletCooldown = this.bulletCooldownDuration;
+                    } else {
+                        // After firing all bullets, go back to retreat
+                        this.state = 'retreat';
+                        this.retreatTimer = this.retreatDuration;
+                    }
+                } else {
+                    this.bulletCooldown--;
+                }
+                break;
+        }
+        
+        // If in retreat cooldown, count it down
+        if (this.retreatTimer > 0) {
+            this.retreatTimer--;
+        }
+    }
+    
+    shootBullet() {
+        // Create a high-speed bullet
+        if (!enemyProjectiles) enemyProjectiles = [];
+        
+        const bulletSpeed = 10; // High speed
+        const velocityX = Math.cos(this.rotation) * bulletSpeed;
+        const velocityY = Math.sin(this.rotation) * bulletSpeed;
+        
+        // Create the projectile
+        enemyProjectiles.push({
+            x: this.x + Math.cos(this.rotation) * (this.width/2 + 5),
+            y: this.y + Math.sin(this.rotation) * (this.width/2 + 5),
+            width: 8,
+            height: 8,
+            velocityX: velocityX,
+            velocityY: velocityY,
+            damage: this.damage,
+            angle: this.rotation,
+            color: '#ff9900' // Orange bullet
+        });
+    }
+
+    update() {
+        // Check if health is zero and create explosion effect
+        if (this.health <= 0 && !this.destroyed && typeof window.createExplosion === 'function') {
+            window.createExplosion(this.x, this.y, '#ff9900', 25);
+            this.destroyed = true;
+        }
+        
+        return super.update();
+    }
+}
+
 // Helper function to normalize angle between -PI and PI
 function normalizeAngle(angle) {
     while (angle > Math.PI) angle -= 2 * Math.PI;
@@ -939,3 +1183,5 @@ window.BomberEnemy = BomberEnemy;
 window.SwarmerEnemy = SwarmerEnemy;
 window.SentryEnemy = SentryEnemy;
 window.AutomatedSentry = AutomatedSentry;
+window.RogueDrone = RogueDrone;
+window.RogueFighter = RogueFighter;

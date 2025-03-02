@@ -179,6 +179,13 @@ window.addEventListener('keydown', (e) => {
                 break;
         }
     }
+
+    // Add respawn shortcut for game over screen
+    if (gameState === GAME_STATES.GAME_OVER && (e.key === 'r' || e.key === 'R')) {
+        console.log("Respawn key pressed");
+        window.respawnToStation();
+        return;
+    }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -243,7 +250,16 @@ canvas.addEventListener('click', (e) => {
     
     // Handle clicks in game over screen
     if (gameState === GAME_STATES.GAME_OVER) {
-        handleGameOverClick(mouseX, mouseY);
+        // Check if click is on respawn button
+        if (window.respawnBtn && 
+            mouseX >= window.respawnBtn.x && 
+            mouseX <= window.respawnBtn.x + window.respawnBtn.width && 
+            mouseY >= window.respawnBtn.y && 
+            mouseY <= window.respawnBtn.y + window.respawnBtn.height) {
+            
+            console.log("Respawn button clicked in main event listener!");
+            window.respawnToStation();
+        }
         return;
     }
     
@@ -349,3 +365,37 @@ function handlePauseScreenClick(mouseX, mouseY) {
 // Make the functions globally available
 window.isClickOnSettingsButton = isClickOnSettingsButton;
 window.handlePauseScreenClick = handlePauseScreenClick;
+window.handleGameOverClick = handleGameOverClick;
+
+function handleGameOverClick(mouseX, mouseY) {
+    console.log("handleGameOverClick called", mouseX, mouseY);
+    console.log("respawnBtn:", window.respawnBtn);
+    
+    // Check if click is on respawn button
+    if (window.respawnBtn && 
+        mouseX >= window.respawnBtn.x && 
+        mouseX <= window.respawnBtn.x + window.respawnBtn.width && 
+        mouseY >= window.respawnBtn.y && 
+        mouseY <= window.respawnBtn.y + window.respawnBtn.height) {
+        
+        console.log("Respawn button clicked!");
+        
+        // Call the dedicated respawn function
+        window.respawnToStation();
+    }
+}
+
+// Add a dedicated function for respawn button handling
+function handleRespawnButtonClick() {
+    console.log("Respawn button clicked");
+    window.respawnToStation();
+}
+
+// Make the new function globally available
+window.handleRespawnButtonClick = handleRespawnButtonClick;
+
+// Add a global respawn function for debugging
+window.respawnPlayer = function() {
+    console.log("Manual respawn triggered");
+    window.respawnToStation();
+};
