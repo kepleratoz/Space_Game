@@ -605,10 +605,8 @@ function spawnEnemy() {
             enemies.push(new RogueDrone(x, y));
         } else if (rand < 0.7) {
             enemies.push(new RogueFighter(x, y));
-        } else if (rand < 0.85) {
-            enemies.push(new ShooterEnemy(x, y));
         } else {
-            enemies.push(new BomberEnemy(x, y));
+            enemies.push(new ShooterEnemy(x, y));
         }
         return;
     }

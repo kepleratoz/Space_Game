@@ -235,6 +235,7 @@ function gameLoop() {
                 // Check if player is inside the boundary
                 const playerPoint = { x: player.x, y: player.y };
                 
+                // Check main boundary
                 if (!isPointInsidePolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS)) {
                     // Player is outside the boundary - find the closest point on the boundary
                     const closestPoint = findClosestPointOnPolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS);
@@ -255,18 +256,46 @@ function gameLoop() {
                         const buffer = 5;
                         player.x = closestPoint.x + normalizedDirX * buffer;
                         player.y = closestPoint.y + normalizedDirY * buffer;
-                    } else {
-                        // Fallback if distance is zero (shouldn't happen)
-                        player.x = closestPoint.x;
-                        player.y = closestPoint.y;
+                        
+                        // Stop player movement
+                        player.velocityX = 0;
+                        player.velocityY = 0;
                     }
-                    
-                    // Stop player movement
-                    player.velocityX = 0;
-                    player.velocityY = 0;
-                } else {
-                    // Player is inside the boundary, but check if they're too close to the wall
-                    const closestPoint = findClosestPointOnPolygon(playerPoint, DEBRIS_FIELD.WALL_POINTS);
+                }
+
+                // Check inner walls
+                for (const wall of DEBRIS_FIELD.INNER_WALLS) {
+                    if (isPointInsidePolygon(playerPoint, wall)) {
+                        // Player is inside an inner wall - find the closest point on the wall boundary
+                        const closestPoint = findClosestPointOnPolygon(playerPoint, wall);
+                        
+                        // Calculate direction vector from closest point to player
+                        const dirX = playerPoint.x - closestPoint.x;
+                        const dirY = playerPoint.y - closestPoint.y;
+                        
+                        // Calculate distance
+                        const distance = Math.sqrt(dirX * dirX + dirY * dirY);
+                        
+                        if (distance > 0) {
+                            // Normalize direction vector
+                            const normalizedDirX = dirX / distance;
+                            const normalizedDirY = dirY / distance;
+                            
+                            // Move player outside the wall with a small buffer
+                            const buffer = 5;
+                            player.x = closestPoint.x + normalizedDirX * buffer;
+                            player.y = closestPoint.y + normalizedDirY * buffer;
+                            
+                            // Stop player movement
+                            player.velocityX = 0;
+                            player.velocityY = 0;
+                        }
+                    }
+                }
+
+                // Player is inside the boundary, but check if they're too close to any wall
+                const checkWallProximity = (wall) => {
+                    const closestPoint = findClosestPointOnPolygon(playerPoint, wall);
                     
                     // Calculate distance to the closest point on the boundary
                     const dirX = playerPoint.x - closestPoint.x;
@@ -293,6 +322,14 @@ function gameLoop() {
                             player.velocityY -= dotProduct * normalizedDirY;
                         }
                     }
+                };
+
+                // Check proximity to main boundary
+                checkWallProximity(DEBRIS_FIELD.WALL_POINTS);
+
+                // Check proximity to inner walls
+                for (const wall of DEBRIS_FIELD.INNER_WALLS) {
+                    checkWallProximity(wall);
                 }
             }
         }
@@ -1252,15 +1289,31 @@ function drawDebrisFieldBackground() {
     
     // Draw the irregular boundary walls with the same gradient pattern
     ctx.fillStyle = debrisGradient;
-    ctx.beginPath();
     
     // Draw outer boundary
+    ctx.beginPath();
     ctx.moveTo(DEBRIS_FIELD.WALL_POINTS[0].x, DEBRIS_FIELD.WALL_POINTS[0].y);
     for (let i = 1; i < DEBRIS_FIELD.WALL_POINTS.length; i++) {
         ctx.lineTo(DEBRIS_FIELD.WALL_POINTS[i].x, DEBRIS_FIELD.WALL_POINTS[i].y);
     }
     ctx.closePath();
     ctx.fill();
+    
+    // Draw inner walls
+    DEBRIS_FIELD.INNER_WALLS.forEach(wall => {
+        ctx.beginPath();
+        ctx.moveTo(wall[0].x, wall[0].y);
+        for (let i = 1; i < wall.length; i++) {
+            ctx.lineTo(wall[i].x, wall[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+        
+        // Add a subtle outline to the inner walls
+        ctx.strokeStyle = '#2A2C2F';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    });
     
     // Create a clipping region for the inner area
     ctx.beginPath();
@@ -1281,13 +1334,22 @@ function drawDebrisFieldBackground() {
         );
     }
     
+    // Cut out the inner walls from the clipping region
+    DEBRIS_FIELD.INNER_WALLS.forEach(wall => {
+        ctx.moveTo(wall[0].x, wall[0].y);
+        for (let i = 1; i < wall.length; i++) {
+            ctx.lineTo(wall[i].x, wall[i].y);
+        }
+        ctx.closePath();
+    });
+    
     ctx.closePath();
     ctx.clip();
     
     // Fill the inner area with the background color
-    ctx.fillStyle = '#2A2C2F'; // Dark Charcoal for the playable area
+    ctx.fillStyle = '#2A2C2F';
     ctx.fillRect(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
-
+    
     // Add some subtle texture to the background
     ctx.globalAlpha = 0.1;
     for (let i = 0; i < 100; i++) {
@@ -1310,7 +1372,7 @@ function drawDebrisFieldBackground() {
         ctx.fill();
     }
     ctx.globalAlpha = 1.0;
-
+    
     // Update and draw debris particles
     window.debrisParticles.forEach(particle => {
         // Update position
