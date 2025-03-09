@@ -376,14 +376,14 @@ function spawnObjects() {
         // Only spawn if no Sentry is present
         if (!hasSentry) {
             // Randomly decide to spawn a Sentry (10% chance) or regular enemies
-            const shouldSpawnSentry = Math.random() < 0.1 && timeSinceLastSpawn >= 7000 && enemies.length < 15;
+            const shouldSpawnSentry = Math.random() < 0.1 && timeSinceLastSpawn >= 2000 && enemies.length < 15;
             
             if (shouldSpawnSentry) {
                 spawnSentry();
                 window.lastSpawnTime = currentTime;
             } 
             // Regular enemy spawn logic (only if no Sentry)
-            else if (timeSinceLastSpawn >= 7000 && enemies.length < 15) {
+            else if (timeSinceLastSpawn >= 2000 && enemies.length < 15) {
                 spawnEnemy();
                 window.lastSpawnTime = currentTime;
             }

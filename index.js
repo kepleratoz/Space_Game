@@ -1275,19 +1275,19 @@ if (!window.asteroidShapes) {
 function drawDebrisFieldBackground() {
     // Create the gradient pattern for both the walls and outside area
     const debrisGradient = ctx.createLinearGradient(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
-    debrisGradient.addColorStop(0, '#3A3D42');    // Dark gray
-    debrisGradient.addColorStop(0.3, '#6B5B4A');  // Brown/tan
-    debrisGradient.addColorStop(0.6, '#5A7184');  // Slate blue
-    debrisGradient.addColorStop(1, '#3A3D42');    // Back to dark gray
+    debrisGradient.addColorStop(0, DEBRIS_FIELD.WALL_COLOR);
+    debrisGradient.addColorStop(0.3, '#5a5a7a');
+    debrisGradient.addColorStop(0.6, DEBRIS_FIELD.WALL_COLOR);
+    debrisGradient.addColorStop(1, '#5a5a7a');
     
-    // Fill the entire visible area with the same gradient as the walls
-    ctx.fillStyle = debrisGradient;
+    // Fill the entire visible area with the background color
+    ctx.fillStyle = DEBRIS_FIELD.BACKGROUND_COLOR;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
     
-    // Draw the irregular boundary walls with the same gradient pattern
+    // Draw the irregular boundary walls with the gradient pattern
     ctx.fillStyle = debrisGradient;
     
     // Draw outer boundary
@@ -1299,8 +1299,14 @@ function drawDebrisFieldBackground() {
     ctx.closePath();
     ctx.fill();
     
-    // Draw inner walls
+    // Add a subtle outline to the main boundary
+    ctx.strokeStyle = '#5a5a7a';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Draw inner wall formations with the same gradient
     DEBRIS_FIELD.INNER_WALLS.forEach(wall => {
+        ctx.fillStyle = debrisGradient;
         ctx.beginPath();
         ctx.moveTo(wall[0].x, wall[0].y);
         for (let i = 1; i < wall.length; i++) {
@@ -1309,46 +1315,23 @@ function drawDebrisFieldBackground() {
         ctx.closePath();
         ctx.fill();
         
-        // Add a subtle outline to the inner walls
-        ctx.strokeStyle = '#2A2C2F';
-        ctx.lineWidth = 2;
+        // Add a subtle outline to match the main boundary
+        ctx.strokeStyle = '#5a5a7a';
+        ctx.lineWidth = 3;
         ctx.stroke();
-    });
-    
-    // Create a clipping region for the inner area
-    ctx.beginPath();
-    // Create a smaller inner path by scaling the outer path towards the center
-    const centerX = DEBRIS_FIELD.WIDTH / 2;
-    const centerY = DEBRIS_FIELD.HEIGHT / 2;
-    const scale = 0.95; // Scale factor to create inner wall
-    
-    ctx.moveTo(
-        centerX + (DEBRIS_FIELD.WALL_POINTS[0].x - centerX) * scale,
-        centerY + (DEBRIS_FIELD.WALL_POINTS[0].y - centerY) * scale
-    );
-    
-    for (let i = 1; i < DEBRIS_FIELD.WALL_POINTS.length; i++) {
-        ctx.lineTo(
-            centerX + (DEBRIS_FIELD.WALL_POINTS[i].x - centerX) * scale,
-            centerY + (DEBRIS_FIELD.WALL_POINTS[i].y - centerY) * scale
+        
+        // Add a very subtle inner glow
+        const glowGradient = ctx.createLinearGradient(
+            wall[0].x, wall[0].y,
+            wall[wall.length - 1].x, wall[wall.length - 1].y
         );
-    }
-    
-    // Cut out the inner walls from the clipping region
-    DEBRIS_FIELD.INNER_WALLS.forEach(wall => {
-        ctx.moveTo(wall[0].x, wall[0].y);
-        for (let i = 1; i < wall.length; i++) {
-            ctx.lineTo(wall[i].x, wall[i].y);
-        }
-        ctx.closePath();
+        glowGradient.addColorStop(0, 'rgba(90, 90, 122, 0.2)');
+        glowGradient.addColorStop(0.5, 'rgba(90, 90, 122, 0.1)');
+        glowGradient.addColorStop(1, 'rgba(90, 90, 122, 0.2)');
+        
+        ctx.fillStyle = glowGradient;
+        ctx.fill();
     });
-    
-    ctx.closePath();
-    ctx.clip();
-    
-    // Fill the inner area with the background color
-    ctx.fillStyle = '#2A2C2F';
-    ctx.fillRect(0, 0, DEBRIS_FIELD.WIDTH, DEBRIS_FIELD.HEIGHT);
     
     // Add some subtle texture to the background
     ctx.globalAlpha = 0.1;
@@ -1357,16 +1340,8 @@ function drawDebrisFieldBackground() {
         const y = Math.random() * DEBRIS_FIELD.HEIGHT;
         const size = 1 + Math.random() * 3;
         
-        // Random color from our palette
-        const colorType = Math.random();
-        if (colorType < 0.4) {
-            ctx.fillStyle = '#3A3D42'; // Dark gray
-        } else if (colorType < 0.7) {
-            ctx.fillStyle = '#6B5B4A'; // Brown/tan
-        } else {
-            ctx.fillStyle = '#5A7184'; // Slate blue
-        }
-        
+        // Use the wall color for texture
+        ctx.fillStyle = DEBRIS_FIELD.WALL_COLOR;
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fill();

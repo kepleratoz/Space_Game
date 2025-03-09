@@ -71,50 +71,45 @@ const DEBRIS_FIELD = {
         { x: 0, y: 0 }
     ],
     INNER_WALLS: [
-        // Wall blob 1 - top left
+        // Top center formation - connected to top boundary
         [
-            {x: 800, y: 600},
-            {x: 900, y: 550},
-            {x: 1000, y: 600},
-            {x: 1000, y: 700},
-            {x: 900, y: 750},
-            {x: 800, y: 700}
+            {x: 1600, y: 100}, // Connect to main boundary
+            {x: 1800, y: 200},
+            {x: 2000, y: 400},
+            {x: 2200, y: 200},
+            {x: 2400, y: 100}  // Connect to main boundary
         ],
-        // Wall blob 2 - top right
+        // Right side formation - connected to right boundary
         [
-            {x: 2800, y: 600},
-            {x: 2900, y: 550},
-            {x: 3000, y: 600},
-            {x: 3000, y: 700},
-            {x: 2900, y: 750},
-            {x: 2800, y: 700}
+            {x: 4000, y: 1600}, // Connect to main boundary
+            {x: 3800, y: 1800},
+            {x: 3600, y: 2000},
+            {x: 3800, y: 2200},
+            {x: 4000, y: 2400}  // Connect to main boundary
         ],
-        // Wall blob 3 - center
+        // Bottom center formation - connected to bottom boundary
         [
-            {x: 1800, y: 1800},
-            {x: 1900, y: 1750},
-            {x: 2000, y: 1800},
-            {x: 2000, y: 1900},
-            {x: 1900, y: 1950},
-            {x: 1800, y: 1900}
+            {x: 1600, y: 4000}, // Connect to main boundary
+            {x: 1800, y: 3800},
+            {x: 2000, y: 3600},
+            {x: 2200, y: 3800},
+            {x: 2400, y: 4000}  // Connect to main boundary
         ],
-        // Wall blob 4 - bottom left
+        // Left side formation - connected to left boundary
         [
-            {x: 800, y: 3000},
-            {x: 900, y: 2950},
-            {x: 1000, y: 3000},
-            {x: 1000, y: 3100},
-            {x: 900, y: 3150},
-            {x: 800, y: 3100}
+            {x: 0, y: 1600}, // Connect to main boundary
+            {x: 200, y: 1800},
+            {x: 400, y: 2000},
+            {x: 200, y: 2200},
+            {x: 0, y: 2400}  // Connect to main boundary
         ],
-        // Wall blob 5 - bottom right
+        // Center formation - connected to top formation
         [
-            {x: 2800, y: 3000},
-            {x: 2900, y: 2950},
-            {x: 3000, y: 3000},
-            {x: 3000, y: 3100},
-            {x: 2900, y: 3150},
-            {x: 2800, y: 3100}
+            {x: 1800, y: 200}, // Connect to top formation
+            {x: 1600, y: 1600},
+            {x: 2000, y: 2000},
+            {x: 2400, y: 1600},
+            {x: 2200, y: 200}  // Connect to top formation
         ]
     ],
     WALL_WIDTH: 40,

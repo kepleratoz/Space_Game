@@ -205,17 +205,17 @@ class ChaserEnemy extends Enemy {
 class ShooterEnemy extends Enemy {
     constructor(x, y) {
         super(x, y);
-        this.width = 30; // Reduced from 40 to 30 (75%)
-        this.height = 30; // Reduced from 40 to 30 (75%)
+        this.width = 30;
+        this.height = 30;
         this.health = 50;
         this.maxHealth = 50;
         this.damage = 10;
         this.shootCooldown = 0;
-        this.shootInterval = 90; // 1.5 seconds at 60 FPS
+        this.shootInterval = 90;
         this.laserSpeed = 6;
-        this.laserWidth = 7.5; // Reduced from 10 to 7.5 (75%)
-        this.laserHeight = 7.5; // Reduced from 10 to 7.5 (75%)
-        this.color = '#ff0000'; // Changed to red
+        this.laserWidth = 7.5;
+        this.laserHeight = 7.5;
+        this.color = '#ff0000';
         this.maxSpeed = 2;
         this.aggroRange = 800;
         this.shootRange = 600;
@@ -224,40 +224,142 @@ class ShooterEnemy extends Enemy {
         this.idleTimer = 0;
         this.idleChangeInterval = 180;
         this.type = 'Shooter';
+
+        // Sprite animation properties
+        this.spriteLoaded = false;
+        this.sprite = new Image();
+        this.sprite.onload = () => {
+            this.spriteLoaded = true;
+            console.log('Shooter sprite loaded successfully');
+        };
+        this.sprite.onerror = (error) => {
+            console.warn('Failed to load shooter sprite, using fallback shape. Error:', error);
+            console.warn('Attempted path:', this.sprite.src);
+        };
+        this.sprite.src = './sprites/Shooter Test Spritesheet.png';
+        
+        // Animation properties
+        this.frameWidth = 32;
+        this.frameHeight = 32;
+        this.currentFrame = 0;
+        this.animationTimer = 0;
+        this.animationSpeed = 30;
+        this.currentAnimation = 'idle';
+        this.lastAnimation = 'idle';
+        this.stateTimer = 0;
+        this.stateChangeDelay = 15; // Minimum frames between state changes
+        
+        // Define animation frames in sprite sheet
+        this.animations = {
+            idle: {
+                startX: 0,
+                startY: 0,
+                frames: 1
+            },
+            moving: {
+                startX: 0,
+                startY: 0,
+                frames: 1
+            },
+            aggressive: {
+                startX: 0,
+                startY: 0,
+                frames: 1
+            }
+        };
     }
 
     drawShape(x, y) {
-        // Draw a simple red square
-        ctx.fillRect(x - this.width/2, y - this.height/2, this.width, this.height);
+        if (!this.spriteLoaded || !this.sprite.complete) {
+            this.drawFallbackShape(x, y);
+            return;
+        }
+
+        try {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(this.rotation);
+            
+            // Draw the sprite
+            ctx.drawImage(
+                this.sprite,
+                0, 0,                    // Source position (always 0,0 for single sprite)
+                this.frameWidth,         // Source dimensions
+                this.frameHeight,
+                -this.width/2,          // Destination position (centered)
+                -this.height/2,
+                this.width,             // Destination dimensions
+                this.height
+            );
+            
+            ctx.restore();
+        } catch (error) {
+            console.error('Error in drawShape:', error);
+            this.drawFallbackShape(x, y);
+        }
+    }
+
+    drawFallbackShape(x, y) {
+        // Draw a more detailed fallback shape
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(this.rotation);
+        
+        // Main body (square)
+        ctx.fillStyle = this.color;
+        ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+        
+        // Gun barrel
+        ctx.fillStyle = '#800000';
+        ctx.fillRect(0, -this.width/6, this.width/2, this.height/3);
+        
+        // Engine (back)
+        ctx.fillStyle = '#ff6666';
+        ctx.fillRect(-this.width/2, -this.height/3, this.width/4, this.height/6);
+        ctx.fillRect(-this.width/2, this.height/6, this.width/4, this.height/6);
+        
+        ctx.restore();
+    }
+
+    changeAnimation(newState) {
+        if (this.currentAnimation === newState) return;
+        
+        // Only allow state changes after delay
+        if (this.stateTimer > 0) return;
+        
+        this.lastAnimation = this.currentAnimation;
+        this.currentAnimation = newState;
+        this.currentFrame = 0;
+        this.animationTimer = 0;
+        this.stateTimer = this.stateChangeDelay;
     }
 
     behavior() {
         if (window.isFrozen) return;
 
-        // Move towards player if in aggro range
-        if (player && distance(this.x, this.y, player.x, player.y) < this.aggroRange) {
-            // Calculate angle to player
+        const distToPlayer = distance(this.x, this.y, player.x, player.y);
+
+        // Update rotation to face player
+        if (player) {
             this.rotation = Math.atan2(player.y - this.y, player.x - this.x);
+        }
+
+        // Simple state management
+        if (distToPlayer <= this.shootRange) {
+            // In shooting range - shoot and slow down
+            this.velocityX *= 0.9;
+            this.velocityY *= 0.9;
             
-            // Move towards player if not in shoot range
-            if (distance(this.x, this.y, player.x, player.y) > this.shootRange) {
-                this.velocityX = Math.cos(this.rotation) * this.maxSpeed;
-                this.velocityY = Math.sin(this.rotation) * this.maxSpeed;
-            } else {
-                // Slow down when in shooting range
-                this.velocityX *= 0.9;
-                this.velocityY *= 0.9;
-                
-                // Shoot at player
-                if (this.shootCooldown <= 0) {
-                    this.shoot();
-                    this.shootCooldown = this.shootInterval;
-                } else {
-                    this.shootCooldown--;
-                }
+            if (this.shootCooldown <= 0) {
+                this.shoot();
+                this.shootCooldown = this.shootInterval;
             }
+        } else if (distToPlayer <= this.aggroRange) {
+            // In aggro range but outside shoot range - move towards player
+            this.velocityX = Math.cos(this.rotation) * this.maxSpeed;
+            this.velocityY = Math.sin(this.rotation) * this.maxSpeed;
         } else {
-            // Slow down when not chasing
+            // Outside aggro range - slow down
             this.velocityX *= 0.95;
             this.velocityY *= 0.95;
         }
@@ -266,10 +368,6 @@ class ShooterEnemy extends Enemy {
         if (this.shootCooldown > 0) {
             this.shootCooldown--;
         }
-
-        // Keep within world bounds
-        this.x = Math.max(0, Math.min(WORLD_WIDTH, this.x));
-        this.y = Math.max(0, Math.min(WORLD_HEIGHT, this.y));
     }
 
     shoot() {
