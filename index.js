@@ -190,10 +190,7 @@ function gameLoop() {
         console.error("Camera is null in game loop!");
     }
     
-    // Debug logging for player and camera position
-    if (player && isDebugMode) {
-        console.log("Player position:", player.x, player.y, "Camera position:", camera.x, camera.y);
-    }
+    
     
     // Draw appropriate background based on zone
     if (window.currentZone === GAME_ZONES.TESTING) {

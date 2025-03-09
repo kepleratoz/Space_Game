@@ -30,7 +30,6 @@ class Enemy {
 
         ctx.save();
         ctx.translate(screenX, screenY);
-        ctx.rotate(this.rotation);
         ctx.fillStyle = this.color;
         this.drawShape(0, 0);
         ctx.restore();
@@ -205,8 +204,9 @@ class ChaserEnemy extends Enemy {
 class ShooterEnemy extends Enemy {
     constructor(x, y) {
         super(x, y);
-        this.width = 30;
-        this.height = 30;
+        this.width = 32;  // Hitbox width
+        this.height = 32; // Hitbox height
+        this.visualScale = 1.5; // Scale factor for visual size
         this.health = 50;
         this.maxHealth = 50;
         this.damage = 10;
@@ -219,13 +219,9 @@ class ShooterEnemy extends Enemy {
         this.maxSpeed = 2;
         this.aggroRange = 800;
         this.shootRange = 600;
-        this.idleSpeed = 0.5;
-        this.idleAngle = Math.random() * Math.PI * 2;
-        this.idleTimer = 0;
-        this.idleChangeInterval = 180;
         this.type = 'Shooter';
 
-        // Sprite animation properties
+        // Simple sprite loading
         this.spriteLoaded = false;
         this.sprite = new Image();
         this.sprite.onload = () => {
@@ -237,36 +233,6 @@ class ShooterEnemy extends Enemy {
             console.warn('Attempted path:', this.sprite.src);
         };
         this.sprite.src = './sprites/Shooter Test Spritesheet.png';
-        
-        // Animation properties
-        this.frameWidth = 32;
-        this.frameHeight = 32;
-        this.currentFrame = 0;
-        this.animationTimer = 0;
-        this.animationSpeed = 30;
-        this.currentAnimation = 'idle';
-        this.lastAnimation = 'idle';
-        this.stateTimer = 0;
-        this.stateChangeDelay = 15; // Minimum frames between state changes
-        
-        // Define animation frames in sprite sheet
-        this.animations = {
-            idle: {
-                startX: 0,
-                startY: 0,
-                frames: 1
-            },
-            moving: {
-                startX: 0,
-                startY: 0,
-                frames: 1
-            },
-            aggressive: {
-                startX: 0,
-                startY: 0,
-                frames: 1
-            }
-        };
     }
 
     drawShape(x, y) {
@@ -278,18 +244,19 @@ class ShooterEnemy extends Enemy {
         try {
             ctx.save();
             ctx.translate(x, y);
-            ctx.rotate(this.rotation);
+            ctx.rotate(this.rotation + Math.PI/2); // Add 90 degrees to correct the orientation
             
-            // Draw the sprite
+            // Draw the sprite larger while keeping hitbox the same
+            const visualWidth = this.width * this.visualScale;
+            const visualHeight = this.height * this.visualScale;
+            
+            // Draw the entire sprite
             ctx.drawImage(
                 this.sprite,
-                0, 0,                    // Source position (always 0,0 for single sprite)
-                this.frameWidth,         // Source dimensions
-                this.frameHeight,
-                -this.width/2,          // Destination position (centered)
-                -this.height/2,
-                this.width,             // Destination dimensions
-                this.height
+                -visualWidth/2,  // Center the larger sprite
+                -visualHeight/2,
+                visualWidth,
+                visualHeight
             );
             
             ctx.restore();
@@ -300,38 +267,28 @@ class ShooterEnemy extends Enemy {
     }
 
     drawFallbackShape(x, y) {
-        // Draw a more detailed fallback shape
+        // Draw a more detailed fallback shape at the larger size
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(this.rotation);
         
+        const visualWidth = this.width * this.visualScale;
+        const visualHeight = this.height * this.visualScale;
+        
         // Main body (square)
         ctx.fillStyle = this.color;
-        ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+        ctx.fillRect(-visualWidth/2, -visualHeight/2, visualWidth, visualHeight);
         
         // Gun barrel
         ctx.fillStyle = '#800000';
-        ctx.fillRect(0, -this.width/6, this.width/2, this.height/3);
+        ctx.fillRect(0, -visualWidth/6, visualWidth/2, visualHeight/3);
         
         // Engine (back)
         ctx.fillStyle = '#ff6666';
-        ctx.fillRect(-this.width/2, -this.height/3, this.width/4, this.height/6);
-        ctx.fillRect(-this.width/2, this.height/6, this.width/4, this.height/6);
+        ctx.fillRect(-visualWidth/2, -visualHeight/3, visualWidth/4, visualHeight/6);
+        ctx.fillRect(-visualWidth/2, visualHeight/6, visualWidth/4, visualHeight/6);
         
         ctx.restore();
-    }
-
-    changeAnimation(newState) {
-        if (this.currentAnimation === newState) return;
-        
-        // Only allow state changes after delay
-        if (this.stateTimer > 0) return;
-        
-        this.lastAnimation = this.currentAnimation;
-        this.currentAnimation = newState;
-        this.currentFrame = 0;
-        this.animationTimer = 0;
-        this.stateTimer = this.stateChangeDelay;
     }
 
     behavior() {
@@ -393,7 +350,26 @@ class ShooterEnemy extends Enemy {
     }
 
     draw() {
-        super.draw();
+        const screenX = this.x - camera.x;
+        const screenY = this.y - camera.y;
+        
+        // Only draw if on screen
+        if (screenX + this.width < 0 || screenX - this.width > canvas.width ||
+            screenY + this.height < 0 || screenY - this.height > canvas.height) {
+            return;
+        }
+
+        ctx.save();
+        ctx.translate(screenX, screenY);
+        ctx.fillStyle = this.color;
+        this.drawShape(0, 0);
+        ctx.restore();
+
+        // Check if mouse is hovering over this enemy
+        if (Math.abs(mouse.x - screenX) < this.width/2 && 
+            Math.abs(mouse.y - screenY) < this.height/2) {
+            this.drawTooltip(screenX, screenY);
+        }
     }
 }
 
